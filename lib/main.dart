@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -21,8 +22,12 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 Future<void> _initLocalNotifications() async {
   const AndroidInitializationSettings androidSettings =
   AndroidInitializationSettings('@mipmap/ic_launcher');
-  const InitializationSettings initSettings =
-  InitializationSettings(android: androidSettings);
+  const DarwinInitializationSettings iosSettings =
+  DarwinInitializationSettings();
+  const InitializationSettings initSettings = InitializationSettings(
+    android: androidSettings,
+    iOS: iosSettings,
+  );
   await flutterLocalNotificationsPlugin.initialize(initSettings);
 }
 
@@ -51,12 +56,16 @@ void _setupForegroundNotifications() {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  // TODO: add iOS FirebaseOptions to firebase_options.dart once configured,
+  // then remove this platform guard.
+  if (defaultTargetPlatform == TargetPlatform.android) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    _setupForegroundNotifications();
+  }
   await _initLocalNotifications();
-  _setupForegroundNotifications();
   await AppVersion.init();
   runApp(
     ChangeNotifierProvider(

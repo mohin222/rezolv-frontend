@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'main_shell.dart';
@@ -59,11 +60,14 @@ class _SplashScreenState extends State<SplashScreen>
     _controller.forward();
 
     // Request notification permission immediately
-    FirebaseMessaging.instance.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
+    // TODO: enable on iOS once Firebase iOS config is added.
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      FirebaseMessaging.instance.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+    }
 
     Timer(const Duration(milliseconds: 2600), () async {
       if (!mounted) return;
@@ -82,9 +86,12 @@ class _SplashScreenState extends State<SplashScreen>
           );
 
           // Get FCM token and save to Django
-          final fcmToken = await FirebaseMessaging.instance.getToken();
-          if (fcmToken != null) {
-            await ApiRepository().saveFcmToken(fcmToken);
+          // TODO: enable on iOS once Firebase iOS config is added.
+          if (defaultTargetPlatform == TargetPlatform.android) {
+            final fcmToken = await FirebaseMessaging.instance.getToken();
+            if (fcmToken != null) {
+              await ApiRepository().saveFcmToken(fcmToken);
+            }
           }
 
           nextScreen = const MainShell();
