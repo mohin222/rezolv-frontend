@@ -50,7 +50,7 @@ class ApiRepository {
         'phone':    data['phone']    ?? '',
       };
     }
-    throw Exception('Invalid credentials');
+    throw Exception('Login failed (HTTP ${response.statusCode}): ${response.body}');
   }
 
   Future<Map<String, String>> verifyToken() async {
