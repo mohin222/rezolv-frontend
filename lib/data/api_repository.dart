@@ -134,8 +134,8 @@ class ApiRepository {
       final sevenDaysLater = now.add(const Duration(days: 6));
       final sevenStr = '${sevenDaysLater.year}-${sevenDaysLater.month.toString().padLeft(2, '0')}-${sevenDaysLater.day.toString().padLeft(2, '0')}';
       final params = <String, String>{
-        'from_date': todayStr,
-        'to_date': sevenStr,
+        'from_date': fromDate ?? todayStr,
+        'to_date': toDate ?? sevenStr,
       };
       final uri = Uri.parse('${ApiConfig.baseUrl}/api/inventory/$locationCode/')
           .replace(queryParameters: params);

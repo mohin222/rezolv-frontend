@@ -4,6 +4,7 @@ import '../models/real_station.dart';
 import '../models/real_hotel_days.dart';
 import '../widgets/custom_bottom_nav.dart';
 import 'hotel_detail_screen.dart';
+import 'sold_out_calendar_screen.dart';
 
 class RealStationDrilldownScreen extends StatefulWidget {
   final RealStation station;
@@ -90,7 +91,7 @@ class _RealStationDrilldownScreenState extends State<RealStationDrilldownScreen>
           padding: const EdgeInsets.fromLTRB(8, 6, 16, 6),
           child: Row(children: [
             IconButton(icon: const Icon(Icons.arrow_back, color: _navy), onPressed: () => Navigator.of(context).pop()),
-            Text(widget.station.cityLabel, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textPrimary)),
+            Expanded(child: Text(widget.station.cityLabel, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textPrimary))),
           ]),
         ),
         Expanded(child: _buildBody()),
@@ -180,6 +181,18 @@ class _RealStationDrilldownScreenState extends State<RealStationDrilldownScreen>
               ));
             }).toList()),
           ]),
+        ),
+
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
+          child: _SoldOutCalendarBanner(
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => SoldOutCalendarScreen(
+                stationCode: station.code,
+                stationCity: station.cityLabel,
+              ),
+            )),
+          ),
         ),
 
         const SizedBox(height: 12),
@@ -328,6 +341,54 @@ class _HotelDayRow extends StatelessWidget {
         const SizedBox(height: 2),
         Text(rooms?.toString() ?? '?', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: fg)),
       ]),
+    );
+  }
+}
+
+class _SoldOutCalendarBanner extends StatelessWidget {
+  final VoidCallback onTap;
+  const _SoldOutCalendarBanner({required this.onTap});
+
+  static const _navy    = Color(0xFF0D2B4E);
+  static const _darkRed = Color(0xFFC62828);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme          = Theme.of(context);
+    final isDark         = theme.brightness == Brightness.dark;
+    final cardBg         = theme.cardColor;
+    final textPrimary    = theme.colorScheme.onSurface;
+    final textSecondary  = theme.colorScheme.onSurface.withOpacity(0.55);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: _darkRed.withOpacity(0.25)),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(isDark ? 0.2 : 0.04), blurRadius: 6, offset: const Offset(0, 2))],
+          ),
+          child: Row(children: [
+            Container(
+              width: 40, height: 40,
+              decoration: BoxDecoration(color: _darkRed.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+              child: const Icon(Icons.event_busy_rounded, color: _darkRed, size: 21),
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Sold-Out Calendar', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: textPrimary)),
+              const SizedBox(height: 2),
+              Text('See every sold-out date this month', style: TextStyle(fontSize: 11, color: textSecondary)),
+            ])),
+            Icon(Icons.chevron_right, color: _navy, size: 20),
+          ]),
+        ),
+      ),
     );
   }
 }
