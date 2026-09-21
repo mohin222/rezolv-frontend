@@ -12,6 +12,7 @@ class RealOverviewScreen extends StatefulWidget {
   final bool loading;
   final String? error;
   final Future<void> Function({String? fromDate, String? toDate}) onReload;
+  final bool isOffline;
 
   const RealOverviewScreen({
     super.key,
@@ -21,6 +22,7 @@ class RealOverviewScreen extends StatefulWidget {
     required this.loading,
     required this.error,
     required this.onReload,
+    this.isOffline = false,
   });
 
   @override
@@ -46,13 +48,12 @@ class _RealOverviewScreenState extends State<RealOverviewScreen> {
   bool _dropdownOpen = false;
 
   DateTime _fromDate = DateTime.now();
-  DateTime _toDate = DateTime.now().add(const Duration(days: 2));
+  DateTime _toDate = DateTime.now().add(const Duration(days: 1));
 
   static final DateFormat _apiDateFmt = DateFormat('yyyy-MM-dd');
   static final DateFormat _displayDateFmt = DateFormat('d MMM yyyy');
 
   static const _navy = Color(0xFF0D2B4E);
-  static const _gold = Color(0xFFC1791C);
 
   @override
   void initState() {
@@ -90,7 +91,7 @@ class _RealOverviewScreenState extends State<RealOverviewScreen> {
   void _resetDates() {
     setState(() {
       _fromDate = DateTime.now();
-      _toDate = DateTime.now().add(const Duration(days: 2));
+      _toDate = DateTime.now().add(const Duration(days: 1));
     });
   }
 
@@ -255,7 +256,8 @@ class _RealOverviewScreenState extends State<RealOverviewScreen> {
         ? widget.todayStations
         : _cachedAllStations;
 
-    return GestureDetector(
+    return Scaffold(
+      body: GestureDetector(
       onTap: () { if (_dropdownOpen) _closeOverlay(); },
       child: Container(
         color: bg,
@@ -278,11 +280,11 @@ class _RealOverviewScreenState extends State<RealOverviewScreen> {
                 Row(children: [
                   Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                     Row(children: [
-                      const Icon(Icons.circle, size: 7, color: Colors.green),
+                      Icon(Icons.circle, size: 7, color: widget.isOffline ? Colors.orange : Colors.green),
                       const SizedBox(width: 5),
-                      Text('RICH · Live', style: TextStyle(fontSize: 11, color: textPrimary)),
+                      Text(widget.isOffline ? 'Offline' : 'RICH · Live', style: TextStyle(fontSize: 11, color: textPrimary)),
                     ]),
-                    Text('Real-time', style: TextStyle(fontSize: 10, color: textSecondary)),
+                    if (!widget.isOffline) Text('Real-time', style: TextStyle(fontSize: 10, color: textSecondary)),
                   ]),
                   IconButton(
                     icon: const Icon(Icons.refresh, color: _navy, size: 20),
@@ -291,7 +293,7 @@ class _RealOverviewScreenState extends State<RealOverviewScreen> {
                       setState(() { _selectedCode = null; _selectedCity = null; });
                       widget.onReload(
                         fromDate: _apiDateFmt.format(DateTime.now()),
-                        toDate: _apiDateFmt.format(DateTime.now().add(const Duration(days: 2))),
+                        toDate: _apiDateFmt.format(DateTime.now().add(const Duration(days: 1))),
                       );
                     },
                     padding: const EdgeInsets.only(left: 6),
@@ -413,6 +415,7 @@ class _RealOverviewScreenState extends State<RealOverviewScreen> {
           ]),
         ),
       ),
+      ),
     );
   }
 
@@ -474,7 +477,7 @@ class _RealOverviewScreenState extends State<RealOverviewScreen> {
               _resetDates();
               widget.onReload(
                 fromDate: _apiDateFmt.format(DateTime.now()),
-                toDate: _apiDateFmt.format(DateTime.now().add(const Duration(days: 2))),
+                toDate: _apiDateFmt.format(DateTime.now().add(const Duration(days: 1))),
               );
             },
             child: const Text('Retry'),
@@ -508,7 +511,7 @@ class _RealOverviewScreenState extends State<RealOverviewScreen> {
         setState(() { _selectedCode = null; _selectedCity = null; });
         return widget.onReload(
           fromDate: _apiDateFmt.format(DateTime.now()),
-          toDate: _apiDateFmt.format(DateTime.now().add(const Duration(days: 2))),
+          toDate: _apiDateFmt.format(DateTime.now().add(const Duration(days: 1))),
         );
       },
       child: ListView.builder(

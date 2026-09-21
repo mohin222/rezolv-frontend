@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../data/api_repository.dart';
 import '../models/real_station.dart';
 import '../utils/app_version.dart';
+import '../utils/error_messages.dart';
 class RealAlertsScreen extends StatefulWidget {
   const RealAlertsScreen({super.key});
   @override
@@ -23,17 +25,28 @@ class _RealAlertsScreenState extends State<RealAlertsScreen> {
   bool _loading = true;
   String? _error;
   List<_AlertHotelEntry> _alertEntries = [];
+  Timer? _autoRefreshTimer;
+  static const _autoRefreshInterval = Duration(seconds: 60);
 
   @override
   void initState() {
     super.initState();
     _loadAlerts();
+    _autoRefreshTimer = Timer.periodic(_autoRefreshInterval, (_) => _loadAlerts(silent: true));
   }
 
-  Future<void> _loadAlerts() async {
-    setState(() { _loading = true; _error = null; });
+  @override
+  void dispose() {
+    _autoRefreshTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _loadAlerts({bool silent = false}) async {
+    if (!mounted) return;
+    if (!silent) setState(() { _loading = true; _error = null; });
     try {
-      final stations = await ApiRepository().fetchAllStations();
+      final (stations, _) = await ApiRepository().fetchAllStations();
+      if (!mounted) return;
       final entries = <_AlertHotelEntry>[];
       for (final station in stations) {
         for (final hotel in station.hotels) {
@@ -46,7 +59,9 @@ class _RealAlertsScreenState extends State<RealAlertsScreen> {
       }
       setState(() { _alertEntries = entries; _loading = false; });
     } catch (e) {
-      setState(() { _error = e.toString(); _loading = false; });
+      if (!mounted) return;
+      if (silent) return; // keep showing the last good alerts over a transient background failure
+      setState(() { _error = friendlyError(e); _loading = false; });
     }
   }
 
@@ -109,8 +124,14 @@ class _RealAlertsScreenState extends State<RealAlertsScreen> {
         ),
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('${_alertEntries.length}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0D2B4E))),
-          Text('hotels sold out or going dark', style: TextStyle(fontSize: 11.5, color: textSecondary)),
+          Text('${_alertEntries.where((e) => e.isSoldOut).length}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0D2B4E))),
+          Builder(builder: (_) {
+            final goingDark = _alertEntries.where((e) => e.isStopsell && !e.isSoldOut).length;
+            return Text(
+              goingDark > 0 ? 'hotels sold out · $goingDark going dark' : 'hotels sold out',
+              style: TextStyle(fontSize: 11.5, color: textSecondary),
+            );
+          }),
         ])),
       ]),
     );

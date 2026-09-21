@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/leak_item.dart';
 import '../data/api_repository.dart';
 import '../utils/app_version.dart';
+import '../utils/error_messages.dart';
 
 class LeaksScreen extends StatefulWidget {
   const LeaksScreen({super.key});
@@ -40,6 +42,9 @@ class _LeaksScreenState extends State<LeaksScreen> {
   int _visibleCount = _pageSize;
   bool _loading = false;
   String? _error;
+  bool _isOffline = false;
+  Timer? _autoRefreshTimer;
+  static const _autoRefreshInterval = Duration(seconds: 60);
 
   static final _apiFmt     = DateFormat('yyyy-MM-dd');
   static final _displayFmt = DateFormat('d MMM yyyy');
@@ -60,10 +65,12 @@ class _LeaksScreenState extends State<LeaksScreen> {
     super.initState();
     _loadStations();
     _fetch();
+    _autoRefreshTimer = Timer.periodic(_autoRefreshInterval, (_) => _fetch(silent: true));
   }
 
   @override
   void dispose() {
+    _autoRefreshTimer?.cancel();
     _closeStationOverlay();
     _closeHotelOverlay();
     _stationSearchCtrl.dispose();
@@ -81,23 +88,27 @@ class _LeaksScreenState extends State<LeaksScreen> {
     } catch (_) {}
   }
 
-  Future<void> _fetch() async {
+  Future<void> _fetch({bool silent = false}) async {
     if (!mounted) return;
-    setState(() { _loading = true; _error = null; _visibleCount = _pageSize; });
+    if (!silent) setState(() { _loading = true; _error = null; _visibleCount = _pageSize; });
     try {
-      final leaks = await _repo.fetchLeaks(
+      final (leaks, fetchWasFromCache) = await _repo.fetchLeaks(
         date: _apiFmt.format(_selectedDate),
         station: _selectedStation,
         hotelId: _selectedHotelId,
       );
       if (!mounted) return;
-      setState(() => _allLeaks = leaks);
+      setState(() {
+        _allLeaks = leaks;
+        _isOffline = fetchWasFromCache;
+      });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = e.toString());
+      if (silent) return; // keep showing the last good list over a transient background failure
+      setState(() => _error = friendlyError(e));
     } finally {
       if (!mounted) return;
-      setState(() => _loading = false);
+      if (!silent) setState(() => _loading = false);
     }
   }
 
@@ -189,11 +200,9 @@ class _LeaksScreenState extends State<LeaksScreen> {
     }
   }
 
-  void _openWhatsApp(LeakItem leak) async {
-    final phone = leak.phone.replaceAll(RegExp(r'[^\d+]'), '');
-    final msg = Uri.encodeComponent('Hi Haleema, please check ${leak.hotelName} (${leak.station}) on ${leak.date}. CM: ${leak.cmRooms}, Extranet: ${leak.extranetRooms}, Gap: ${leak.gap} rooms.');
-    final uri = Uri.parse('https://wa.me/$phone?text=$msg');
-    if (await canLaunchUrl(uri)) launchUrl(uri);
+  void _openFixInRich() async {
+    final uri = Uri.parse('https://rich.rezolv.app/#/login');
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   void _openEmail(LeakItem leak) async {
@@ -270,6 +279,14 @@ class _LeaksScreenState extends State<LeaksScreen> {
 
               ]),
             ])),
+            if (_isOffline) Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                const Icon(Icons.circle, size: 6, color: Colors.orange),
+                const SizedBox(width: 4),
+                Text('Offline', style: TextStyle(fontSize: 10.5, color: textSecondary)),
+              ]),
+            ),
             IconButton(icon: const Icon(Icons.refresh, color: _navy, size: 20), onPressed: _resetFilters, padding: EdgeInsets.zero, constraints: const BoxConstraints()),
           ]),
         ),
@@ -372,7 +389,7 @@ class _LeaksScreenState extends State<LeaksScreen> {
           final leak = visible[i - 1];
           final isLast = i == visible.length;
           return Column(children: [
-            _LeakCard(leak: leak, navy: _navy, gold: _gold, darkRed: _darkRed, isDark: isDark, onWhatsApp: () => _openWhatsApp(leak), onEmail: () => _openEmail(leak), onFixRich: () {}),
+            _LeakCard(leak: leak, navy: _navy, gold: _gold, darkRed: _darkRed, isDark: isDark, onEmail: () => _openEmail(leak), onFixRich: _openFixInRich),
             if (isLast && hasMore) ...[
               const SizedBox(height: 10),
               Center(child: OutlinedButton(
@@ -392,8 +409,8 @@ class _LeakCard extends StatelessWidget {
   final LeakItem leak;
   final Color navy, gold, darkRed;
   final bool isDark;
-  final VoidCallback onWhatsApp, onEmail, onFixRich;
-  const _LeakCard({required this.leak, required this.navy, required this.gold, required this.darkRed, required this.isDark, required this.onWhatsApp, required this.onEmail, required this.onFixRich});
+  final VoidCallback onEmail, onFixRich;
+  const _LeakCard({required this.leak, required this.navy, required this.gold, required this.darkRed, required this.isDark, required this.onEmail, required this.onFixRich});
 
   String _fmtDate(String d) {
     try { return DateFormat('d MMM').format(DateTime.parse(d)); } catch (_) { return d; }
@@ -423,6 +440,37 @@ class _LeakCard extends StatelessWidget {
                 Expanded(child: Text(leak.hotelName, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: navy))),
                 Text('${leak.station} · ${_fmtDate(leak.date)}', style: TextStyle(fontSize: 11, color: textSecondary)),
               ]),
+              if (leak.starCategory != null && leak.target != null) ...[
+                const SizedBox(height: 4),
+                Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.star_rounded, size: 13, color: gold),
+                  const SizedBox(width: 2),
+                  Text(
+                    '${leak.starCategory} Star · Target: ${leak.target} rooms',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: gold),
+                  ),
+                  if (leak.starTargetPct != null) ...[
+                    const SizedBox(width: 4),
+                    Text(
+                      '(${leak.starTargetPct}%)',
+                      style: TextStyle(fontSize: 9, fontWeight: FontWeight.w400, color: textSecondary),
+                    ),
+                  ],
+                ]),
+              ],
+              const SizedBox(height: 4),
+              Row(children: [
+                Icon(Icons.flight_takeoff, size: 12, color: textSecondary),
+                const SizedBox(width: 4),
+                Text(
+                  leak.distanceKm != null
+                      ? '${leak.distanceKm!.toStringAsFixed(1)} km from ${leak.station} airport'
+                      : (leak.distanceText != null && leak.distanceText!.isNotEmpty)
+                          ? '${leak.distanceText} from ${leak.station} airport'
+                          : '—',
+                  style: TextStyle(fontSize: 10.5, color: textSecondary),
+                ),
+              ]),
               const SizedBox(height: 10),
               Row(children: [
                 _StatBox(label: 'CM',       value: '${leak.cmRooms}',       color: navy,    isDark: isDark),
@@ -434,8 +482,6 @@ class _LeakCard extends StatelessWidget {
               const SizedBox(height: 10),
               SizedBox(height: 50, child: Row(children: [
                 Expanded(child: _ActionBtn(label: 'Fix in RICH',      icon: Icons.build_outlined,  bg: navy,                    fg: Colors.white,            onTap: onFixRich)),
-                const SizedBox(width: 6),
-                Expanded(child: _ActionBtn(label: 'WhatsApp Haleema', icon: Icons.chat_outlined,   bg: const Color(0xFFE8F5E9), fg: const Color(0xFF2E7D32), onTap: onWhatsApp)),
                 const SizedBox(width: 6),
                 Expanded(child: _ActionBtn(label: 'Send Email',       icon: Icons.email_outlined,  bg: const Color(0xFFE3F2FD), fg: const Color(0xFF1565C0), onTap: onEmail)),
               ])),

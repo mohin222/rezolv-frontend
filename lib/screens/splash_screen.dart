@@ -95,9 +95,16 @@ class _SplashScreenState extends State<SplashScreen>
           }
 
           nextScreen = const MainShell();
-        } catch (_) {
+        } on UnauthorizedException {
+          // Token really is invalid/expired per the server — log out.
           await ApiConfig.clearToken();
           nextScreen = const LoginScreen();
+        } catch (_) {
+          // Couldn't reach the server at all (no internet, timeout, etc).
+          // We don't know the token is invalid, so don't log the user out —
+          // let them into the app; every screen already falls back to its
+          // offline cache when a live fetch fails.
+          nextScreen = const MainShell();
         }
       }
 

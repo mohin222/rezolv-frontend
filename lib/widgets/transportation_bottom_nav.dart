@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 
-class CustomBottomNav extends StatelessWidget {
+class TransportationBottomNav extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onTap;
 
-  const CustomBottomNav({
+  const TransportationBottomNav({
     super.key,
     required this.selectedIndex,
     required this.onTap,
   });
 
-  static const _gold = Color(0xFFC1791C);
+  static const _gold = Color(0xFF6E6E6E);
 
   @override
   Widget build(BuildContext context) {
@@ -18,14 +18,13 @@ class CustomBottomNav extends StatelessWidget {
     final outerBg = isDark ? const Color(0xFF121212) : const Color(0xFFF5F7FA);
     final navBg   = isDark ? const Color(0xFF1E1E1E) : Colors.white;
     final unselectedColor = isDark ? Colors.grey.shade500 : Colors.grey;
-    final selectedBg = isDark ? const Color(0xFF2E2010) : const Color(0xFFFCEEDD);
+    final selectedBg = isDark ? const Color(0xFF2E2010) : const Color(0xFFECECEC);
 
     final items = [
-      (icon: Icons.radio_button_checked,  label: 'Overview'),
-      (icon: Icons.warning_amber_rounded, label: 'Alerts'),
-      (icon: Icons.dashboard_rounded,     label: 'Dashboard'),
-      (icon: Icons.bolt_rounded,          label: 'Leaks'),
-      (icon: Icons.menu_rounded,          label: 'More'),
+      (icon: Icons.radio_button_checked, label: 'Overview'),
+      (icon: Icons.route_rounded,        label: 'Trips'),
+      (icon: Icons.dashboard_rounded,    label: 'Dashboard'),
+      (icon: Icons.more_horiz_rounded,   label: 'More'),
     ];
 
     return Container(

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -8,6 +9,7 @@ import 'firebase_options.dart';
 import 'providers/theme_provider.dart';
 import 'screens/splash_screen.dart';
 import 'utils/app_version.dart';
+import 'utils/trusted_http_overrides.dart';
 
 // Local notifications plugin
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -56,6 +58,7 @@ void _setupForegroundNotifications() {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  HttpOverrides.global = TrustedHttpOverrides();
   // TODO: add iOS FirebaseOptions to firebase_options.dart once configured,
   // then remove this platform guard.
   if (defaultTargetPlatform == TargetPlatform.android) {

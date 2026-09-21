@@ -8,6 +8,9 @@ class RealStation {
   final double fillPct;
   final int gapRooms;
   final String? blockUtil;
+  final int? vehicleCount;
+  final int? flightRiskTomorrow;
+  final int? flightRiskNext5Days;
 
   const RealStation({
     required this.code,
@@ -19,7 +22,40 @@ class RealStation {
     this.fillPct = 0,
     this.gapRooms = 0,
     this.blockUtil,
+    this.vehicleCount,
+    this.flightRiskTomorrow,
+    this.flightRiskNext5Days,
   });
+
+  RealStation withVehicleCount(int? count) => RealStation(
+    code: code,
+    hotelCount: hotelCount,
+    roomsToday: roomsToday,
+    hotels: hotels,
+    starMix: starMix,
+    cmManualSplit: cmManualSplit,
+    fillPct: fillPct,
+    gapRooms: gapRooms,
+    blockUtil: blockUtil,
+    vehicleCount: count,
+    flightRiskTomorrow: flightRiskTomorrow,
+    flightRiskNext5Days: flightRiskNext5Days,
+  );
+
+  RealStation withFlightRisk(int? tomorrow, int? next5Days) => RealStation(
+    code: code,
+    hotelCount: hotelCount,
+    roomsToday: roomsToday,
+    hotels: hotels,
+    starMix: starMix,
+    cmManualSplit: cmManualSplit,
+    fillPct: fillPct,
+    gapRooms: gapRooms,
+    blockUtil: blockUtil,
+    vehicleCount: vehicleCount,
+    flightRiskTomorrow: tomorrow,
+    flightRiskNext5Days: next5Days,
+  );
 
   factory RealStation.fromJson(Map<String, dynamic> json) {
     final hotelsJson = (json['hotels'] as List?) ?? [];

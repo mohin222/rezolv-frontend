@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/real_station.dart';
+import '../screens/transportation_station_detail_screen.dart';
 
 class RealStationCard extends StatefulWidget {
   final RealStation station;
@@ -86,19 +87,61 @@ class _RealStationCardState extends State<RealStationCard> {
             Text(widget.station.code, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textPrimary)),
             Text(widget.station.cityLabel, style: TextStyle(fontSize: 10.5, color: textSecondary)),
           ])),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: widget.station.soldOutCount > 0 ? const Color(0xFFFCE4E4) : const Color(0xFFE8F5E9),
-              borderRadius: BorderRadius.circular(16),
+          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: widget.station.soldOutCount > 0 ? const Color(0xFFFCE4E4) : const Color(0xFFE8F5E9),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.circle, size: 6, color: widget.station.soldOutCount > 0 ? _darkRed : Colors.green),
+                const SizedBox(width: 4),
+                Text('${widget.station.soldOutCount} SO',
+                    style: TextStyle(fontSize: 9.5, color: widget.station.soldOutCount > 0 ? _darkRed : Colors.black87)),
+              ]),
             ),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.circle, size: 6, color: widget.station.soldOutCount > 0 ? _darkRed : Colors.green),
-              const SizedBox(width: 4),
-              Text('${widget.station.soldOutCount} SO',
-                  style: TextStyle(fontSize: 9.5, color: widget.station.soldOutCount > 0 ? _darkRed : Colors.black87)),
-            ]),
-          ),
+            if (widget.station.flightRiskTomorrow != null || widget.station.flightRiskNext5Days != null) ...[
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(color: _gold.withOpacity(0.15), borderRadius: BorderRadius.circular(16)),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.flight_takeoff, size: 10, color: _gold),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Tmr ${widget.station.flightRiskTomorrow ?? 0} · Week ${widget.station.flightRiskNext5Days ?? 0}',
+                    style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, color: _gold),
+                  ),
+                  const SizedBox(width: 4),
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => showDialog(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Flights at Risk'),
+                        content: const Text(
+                          'Flights departing from this station that Think Lumo '
+                          'predicts will be delayed 30+ minutes.\n\n'
+                          '"Tmr" = flights at risk tomorrow.\n'
+                          '"Week" = flights at risk in the coming 5 days.\n\n'
+                          'A delayed flight can mean crew or passengers need '
+                          'last-minute hotel rooms at this station.\n\n'
+                          'Data comes from a CSV export from Think Lumo. '
+                          'Only admin can add or update this — it is not '
+                          'uploaded from within the app.',
+                        ),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Got it')),
+                        ],
+                      ),
+                    ),
+                    child: Icon(Icons.info_outline, size: 12, color: _gold),
+                  ),
+                ]),
+              ),
+            ],
+          ]),
         ]),
 
         const SizedBox(height: 10),
@@ -122,6 +165,23 @@ class _RealStationCardState extends State<RealStationCard> {
           ),
           const SizedBox(width: 12),
           Expanded(child: Column(children: [
+            if (widget.station.vehicleCount != null)
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => TransportationStationDetailScreen(
+                    code: widget.station.code,
+                    city: widget.station.cityLabel,
+                  ),
+                )),
+                child: _statRow(
+                  'Transport',
+                  '${widget.station.vehicleCount}',
+                  _navy,
+                  textSecondary,
+                  trailing: Icon(Icons.chevron_right, size: 13, color: _navy),
+                ),
+              ),
             _statRow('Hotels',     '${widget.station.hotelCount}',                  textPrimary,  textSecondary),
             _statRow('Fill',       '${widget.station.fillPct.toStringAsFixed(1)}%', _darkRed,     textSecondary),
             _statRow('Gap',        '${widget.station.gapRooms}',                    _gapColor,    textSecondary),
@@ -208,12 +268,15 @@ class _RealStationCardState extends State<RealStationCard> {
     ])));
   }
 
-  Widget _statRow(String label, String value, Color valueColor, Color labelColor) {
+  Widget _statRow(String label, String value, Color valueColor, Color labelColor, {Widget? trailing}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
         Text(label, style: TextStyle(fontSize: 11, color: labelColor)),
-        Text(value, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: valueColor)),
+        Row(mainAxisSize: MainAxisSize.min, children: [
+          Text(value, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: valueColor)),
+          if (trailing != null) trailing,
+        ]),
       ]),
     );
   }

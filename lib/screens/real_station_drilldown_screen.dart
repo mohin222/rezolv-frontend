@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../data/api_repository.dart';
 import '../models/real_station.dart';
 import '../models/real_hotel_days.dart';
+import '../utils/error_messages.dart';
 import '../widgets/custom_bottom_nav.dart';
 import 'hotel_detail_screen.dart';
 import 'sold_out_calendar_screen.dart';
@@ -46,6 +47,7 @@ class _RealStationDrilldownScreenState extends State<RealStationDrilldownScreen>
     setState(() { _loading = true; _error = null; });
     try {
       final (dates, hotels) = await ApiRepository().fetchStationDays(widget.station.code);
+      if (!mounted) return;
 
       final from  = DateTime.parse(widget.fromDate);
       final to    = DateTime.parse(widget.toDate);
@@ -62,7 +64,8 @@ class _RealStationDrilldownScreenState extends State<RealStationDrilldownScreen>
         _loading       = false;
       });
     } catch (e) {
-      setState(() { _error = e.toString(); _loading = false; });
+      if (!mounted) return;
+      setState(() { _error = friendlyError(e); _loading = false; });
     }
   }
 

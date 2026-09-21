@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../data/api_repository.dart';
 import '../models/real_hotel_days.dart';
+import '../utils/error_messages.dart';
 
 class SoldOutCalendarScreen extends StatefulWidget {
   final String stationCode;
@@ -63,7 +64,7 @@ class _SoldOutCalendarScreenState extends State<SoldOutCalendarScreen> {
       setState(() { _hotels = hotels; _loading = false; });
     } catch (e) {
       if (!mounted) return;
-      setState(() { _error = e.toString(); _loading = false; });
+      setState(() { _error = friendlyError(e); _loading = false; });
     }
   }
 

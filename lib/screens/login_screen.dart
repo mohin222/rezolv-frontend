@@ -1,6 +1,9 @@
+import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:http/http.dart' as http;
 import '../data/api_config.dart';
 import '../data/api_repository.dart';
 import 'main_shell.dart';
@@ -55,6 +58,12 @@ class _LoginScreenState extends State<LoginScreen> {
           MaterialPageRoute(builder: (_) => const MainShell()),
         );
       }
+    } on SocketException {
+      setState(() => _error = 'No internet connection');
+    } on http.ClientException {
+      setState(() => _error = 'No internet connection');
+    } on TimeoutException {
+      setState(() => _error = 'No internet connection');
     } catch (e) {
       setState(() => _error = 'Invalid username or password');
     } finally {
@@ -97,6 +106,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextField(
                   controller: _usernameController,
                   style: const TextStyle(color: Colors.white),
+                  cursorColor: Colors.white,
                   decoration: _inputDecoration('Username', Icons.person_outline),
                 ),
                 const SizedBox(height: 16),
@@ -105,6 +115,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   controller: _passwordController,
                   obscureText: _obscurePassword,
                   style: const TextStyle(color: Colors.white),
+                  cursorColor: Colors.white,
                   decoration: _inputDecoration('Password', Icons.lock_outline,
                       suffix: IconButton(
                         icon: Icon(
@@ -126,11 +137,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       border: Border.all(color: Colors.redAccent.withOpacity(0.4)),
                     ),
                     child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Icon(Icons.error_outline, color: Colors.redAccent, size: 16),
                         const SizedBox(width: 8),
-                        Text(_error!,
-                            style: const TextStyle(color: Colors.redAccent, fontSize: 13)),
+                        Expanded(
+                          child: Text(_error!,
+                              style: const TextStyle(color: Colors.redAccent, fontSize: 13)),
+                        ),
                       ],
                     ),
                   ),
