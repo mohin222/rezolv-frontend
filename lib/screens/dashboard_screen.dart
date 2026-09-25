@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../data/api_repository.dart';
 import '../utils/app_version.dart';
+import '../widgets/bookings_panel.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -19,6 +20,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     ('week', 'This Week'),
     ('month', 'This Month'),
   ];
+
+  // Which data the dashboard shows: RICH inventory (default), or the AI / AIX
+  // (code IX) bookings.
+  String _source = 'RICH';
+  final _aiPanelKey = GlobalKey<BookingsPanelState>();
+  final _aixPanelKey = GlobalKey<BookingsPanelState>();
 
   String _selectedPeriod = 'today';
   String? _selectedStation; // null = all stations
@@ -78,6 +85,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _topHotels = [];
         _loading = false;
       });
+    }
+  }
+
+  /// Pull-to-refresh and the top reload button: every filter goes back to its
+  /// default (all stations, Today, no date range), then the data reloads.
+  Future<void> _reload() async {
+    if (_source == 'RICH') {
+      setState(() {
+        _selectedStation = null;
+        _selectedPeriod = 'today';
+      });
+      await _load();
+    } else {
+      final panel = _source == 'AIX' ? _aixPanelKey : _aiPanelKey;
+      await panel.currentState?.resetAndReload();
     }
   }
 
@@ -182,7 +204,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       body: SafeArea(
         child: RefreshIndicator(
           color: _navy,
-          onRefresh: _load,
+          onRefresh: _reload,
           child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: EdgeInsets.zero,
@@ -191,6 +213,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                _sourceToggle(cardBg, borderColor, textSecondary),
+                const SizedBox(height: 14),
+                if (_source == 'RICH') ...[
                 GestureDetector(
                   onTap: _openStationPicker,
                   child: Container(
@@ -344,6 +369,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     );
                   }),
+                ] else
+                  BookingsPanel(key: _source == 'AIX' ? _aixPanelKey : _aiPanelKey, airline: _source == 'AIX' ? 'IX' : 'AI'),
               ]),
             ),
           ],
@@ -351,6 +378,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
       ),
     );
+  }
+
+  Widget _sourceToggle(Color cardBg, Color borderColor, Color textSecondary) {
+    const options = ['RICH', 'AI', 'AIX'];
+    return Row(children: options.map((o) {
+      final selected = o == _source;
+      return Expanded(
+        child: GestureDetector(
+          onTap: () {
+            if (o == _source) return;
+            setState(() => _source = o);
+          },
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 3),
+            padding: const EdgeInsets.symmetric(vertical: 11),
+            decoration: BoxDecoration(
+              color: selected ? _navy : cardBg,
+              borderRadius: BorderRadius.circular(10),
+              border: selected ? null : Border.all(color: borderColor),
+            ),
+            child: Text(o, textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: selected ? Colors.white : textSecondary)),
+          ),
+        ),
+      );
+    }).toList());
   }
 
   Widget _header(Color textPrimary, Color textSecondary) {
@@ -369,7 +422,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ])),
         IconButton(
           icon: Icon(Icons.refresh, color: textPrimary, size: 20),
-          onPressed: _load,
+          onPressed: _reload,
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(),
         ),

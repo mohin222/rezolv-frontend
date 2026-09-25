@@ -8,6 +8,13 @@ import '../models/leak_item.dart';
 
 class UnauthorizedException implements Exception {}
 
+class BookingsException implements Exception {
+  final String message;
+  BookingsException(this.message);
+  @override
+  String toString() => message;
+}
+
 class ApiRepository {
   Future<Map<String, String>> _headers() async {
     final token = await ApiConfig.getToken();
@@ -361,6 +368,67 @@ class ApiRepository {
       final cached = await OfflineCache.load('flight_risk_latest');
       if (cached is Map) return cached.cast<String, dynamic>();
       return {'uploaded_at': null, 'total_rows': 0, 'tomorrow_count': 0, 'next_5_days_count': 0};
+    }
+  }
+
+  Future<Map<String, dynamic>> fetchFlightRiskStationDetail(String code) async {
+    final cacheKey = 'flight_risk_station_$code';
+    try {
+      final data = await _withRetry(() async {
+        final uri = Uri.parse('${ApiConfig.baseUrl}/api/flight-risk/station/$code/');
+        final response = await http.get(uri, headers: await _headers())
+            .timeout(const Duration(seconds: 30));
+        _checkUnauthorized(response);
+        if (response.statusCode != 200) throw Exception('Failed to load flight risk detail');
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      });
+      await OfflineCache.save(cacheKey, data);
+      return data;
+    } on UnauthorizedException {
+      rethrow;
+    } catch (_) {
+      final cached = await OfflineCache.load(cacheKey);
+      if (cached is Map) return cached.cast<String, dynamic>();
+      return {'station': code, 'uploaded_at': null, 'tomorrow': [], 'week': []};
+    }
+  }
+
+  /// AI / AIX booking numbers (airline is 'AI' or 'IX'). A failure the
+  /// server explains (e.g. Odoo not configured / unreachable) is thrown as
+  /// a BookingsException carrying that message; with no connection it falls
+  /// back to the last good copy, if there is one.
+  Future<Map<String, dynamic>> fetchBookings(String airline, {String? station, String? from, String? to}) async {
+    final cacheKey = 'bookings_${airline}_${station ?? 'all'}_${from ?? ''}_${to ?? ''}';
+    try {
+      final data = await _withRetry(() async {
+        final uri = Uri.parse('${ApiConfig.baseUrl}/api/bookings/')
+            .replace(queryParameters: {
+          'airline': airline,
+          if (station != null) 'station': station,
+          if (from != null && to != null) ...{'from': from, 'to': to},
+        });
+        final response = await http.get(uri, headers: await _headers())
+            .timeout(const Duration(seconds: 90));
+        _checkUnauthorized(response);
+        if (response.statusCode != 200) {
+          String message = 'Could not load bookings';
+          try {
+            message = (jsonDecode(response.body) as Map)['detail'] as String? ?? message;
+          } catch (_) {}
+          throw BookingsException(message);
+        }
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      }, maxAttempts: 1);
+      await OfflineCache.save(cacheKey, data);
+      return data;
+    } on UnauthorizedException {
+      rethrow;
+    } on BookingsException {
+      rethrow;
+    } catch (_) {
+      final cached = await OfflineCache.load(cacheKey);
+      if (cached is Map) return cached.cast<String, dynamic>();
+      rethrow;
     }
   }
 }

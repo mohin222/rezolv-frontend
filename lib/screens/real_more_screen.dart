@@ -251,7 +251,7 @@ class _RealMoreScreenState extends State<RealMoreScreen> {
         _sectionLabel('ABOUT', labelColor),
         _card(cardBg, dividerColor, [
           _row('App', 'Rezolv Inventory', textSecondary, textPrimary),
-          _row('Version', '1.0.2', textSecondary, textPrimary),
+          _row('Version', AppVersion.version, textSecondary, textPrimary),
         ]),
         const SizedBox(height: 20),
         _sectionLabel('ACCOUNT', labelColor),

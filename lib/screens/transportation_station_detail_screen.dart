@@ -18,6 +18,7 @@ class _TransportationStationDetailScreenState extends State<TransportationStatio
 
   final _searchCtrl = TextEditingController();
   String _query = '';
+  String? _selectedVendorKey;
 
   bool _loading = true;
   List<Map<String, dynamic>> _vendors = [];
@@ -62,9 +63,13 @@ class _TransportationStationDetailScreenState extends State<TransportationStatio
   }
 
   List<Map<String, dynamic>> get _filteredVehicles {
-    if (_query.isEmpty) return _vehicles;
+    var result = _vehicles;
+    if (_selectedVendorKey != null) {
+      result = result.where((v) => _keyFor(v['vendor'] as String?, v['tenant'] as String?) == _selectedVendorKey).toList();
+    }
+    if (_query.isEmpty) return result;
     final q = _query.toLowerCase();
-    return _vehicles.where((v) =>
+    return result.where((v) =>
         '${v['plate']}'.toLowerCase().contains(q) ||
         '${v['type']}'.toLowerCase().contains(q) ||
         '${v['vendor']}'.toLowerCase().contains(q)
@@ -80,6 +85,29 @@ class _TransportationStationDetailScreenState extends State<TransportationStatio
     return counts;
   }
 
+  static String _keyFor(String? name, String? tenant) {
+    final n = name?.trim().isNotEmpty == true ? name!.trim() : 'Unknown';
+    final t = tenant?.trim() ?? '';
+    return t.isEmpty ? n : '$n ($t)';
+  }
+
+  // Vehicles grouped under their vendor, in the same order as the vendor
+  // summary cards above — so the user never has to search which vehicle
+  // belongs to which vendor, it's just labelled right there.
+  Map<String, List<Map<String, dynamic>>> _groupedByVendor(List<Map<String, dynamic>> vehicles) {
+    final orderedKeys = _vendors.map((v) => _keyFor(v['name'] as String?, v['tenant'] as String?)).toList();
+    final groups = <String, List<Map<String, dynamic>>>{};
+    for (final v in vehicles) {
+      groups.putIfAbsent(_keyFor(v['vendor'] as String?, v['tenant'] as String?), () => []).add(v);
+    }
+    final ordered = <String, List<Map<String, dynamic>>>{};
+    for (final key in orderedKeys) {
+      if (groups.containsKey(key)) ordered[key] = groups.remove(key)!;
+    }
+    ordered.addAll(groups); // any leftover vendor not in the summary list
+    return ordered;
+  }
+
   IconData _vendorIcon(int index) {
     const icons = [Icons.storefront_rounded, Icons.local_shipping_outlined, Icons.apartment_rounded];
     return icons[index % icons.length];
@@ -89,6 +117,13 @@ class _TransportationStationDetailScreenState extends State<TransportationStatio
     (bg: Color(0xFFE3F2FD), fg: Color(0xFF1565C0)),
     (bg: Color(0xFFF3E5F5), fg: Color(0xFF7B1FA2)),
   ];
+
+  // Same palette entry a vendor's summary card uses, looked up by its key —
+  // so a vehicle's accent color always matches its vendor's card color.
+  ({Color bg, Color fg}) _paletteFor(String vendorKey) {
+    final index = _vendors.indexWhere((v) => _keyFor(v['name'] as String?, v['tenant'] as String?) == vendorKey);
+    return _palette[(index < 0 ? 0 : index) % _palette.length];
+  }
 
   // Keyword → icon for common vehicle types, checked in order. One fixed
   // color is used for every type — only the icon tells them apart.
@@ -224,24 +259,48 @@ class _TransportationStationDetailScreenState extends State<TransportationStatio
                       const SizedBox(height: 10),
                       ..._vendors.asMap().entries.map((entry) {
                         final palette = _palette[entry.key % _palette.length];
-                        return _AccentCard(
-                          isDark: isDark, cardBg: cardBg, accentColor: palette.fg,
-                          child: Row(children: [
-                            Container(
-                              width: 38, height: 38,
-                              decoration: BoxDecoration(color: palette.bg, borderRadius: BorderRadius.circular(10)),
-                              child: Icon(_vendorIcon(entry.key), size: 18, color: palette.fg),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(child: Text('${entry.value['name']}', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: textPrimary))),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                              decoration: BoxDecoration(color: palette.bg, borderRadius: BorderRadius.circular(20)),
-                              child: Text('${entry.value['vehicles']} vehicles', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: palette.fg)),
-                            ),
-                          ]),
+                        final key = _keyFor(entry.value['name'] as String?, entry.value['tenant'] as String?);
+                        final isSelected = _selectedVendorKey == key;
+                        return GestureDetector(
+                          onTap: () => setState(() => _selectedVendorKey = isSelected ? null : key),
+                          child: _AccentCard(
+                            isDark: isDark, cardBg: cardBg, accentColor: palette.fg,
+                            selected: isSelected,
+                            child: Row(children: [
+                              Container(
+                                width: 38, height: 38,
+                                decoration: BoxDecoration(color: palette.bg, borderRadius: BorderRadius.circular(10)),
+                                child: Icon(_vendorIcon(entry.key), size: 18, color: palette.fg),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                Text('${entry.value['name']}', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: textPrimary)),
+                                if ((entry.value['tenant'] ?? '').toString().isNotEmpty)
+                                  Text('Tenant: ${entry.value['tenant']}', style: TextStyle(fontSize: 10.5, color: textSecondary)),
+                              ])),
+                              if (isSelected) Icon(Icons.check_circle, size: 16, color: palette.fg),
+                              if (isSelected) const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                decoration: BoxDecoration(color: palette.bg, borderRadius: BorderRadius.circular(20)),
+                                child: Text('${entry.value['vehicles']} vehicles', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: palette.fg)),
+                              ),
+                            ]),
+                          ),
                         );
                       }),
+                      if (_selectedVendorKey != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: GestureDetector(
+                            onTap: () => setState(() => _selectedVendorKey = null),
+                            child: Row(mainAxisSize: MainAxisSize.min, children: [
+                              Icon(Icons.filter_alt_off_rounded, size: 13, color: textSecondary),
+                              const SizedBox(width: 4),
+                              Text('Showing $_selectedVendorKey only — tap to clear', style: TextStyle(fontSize: 11, color: textSecondary)),
+                            ]),
+                          ),
+                        ),
 
                       const SizedBox(height: 22),
                       Text('VEHICLE TYPE', style: TextStyle(fontSize: 10.5, color: textSecondary, letterSpacing: 0.8)),
@@ -281,30 +340,47 @@ class _TransportationStationDetailScreenState extends State<TransportationStatio
                           child: Center(child: Text('No vehicles match "$_query"', style: TextStyle(fontSize: 12.5, color: textSecondary))),
                         )
                       else
-                        ...filtered.map((v) {
-                          final style = _vehicleTypeStyle('${v['type']}');
-                          return _AccentCard(
-                          isDark: isDark, cardBg: cardBg, accentColor: _green,
-                          child: Row(children: [
-                            Container(
-                              width: 34, height: 34,
-                              decoration: BoxDecoration(color: style.bg, borderRadius: BorderRadius.circular(9)),
-                              child: Icon(style.icon, size: 16, color: style.fg),
+                        ..._groupedByVendor(filtered).entries.expand((group) {
+                          final vendorLabel = group.key;
+                          final vehicles = group.value;
+                          final palette = _paletteFor(vendorLabel);
+                          return [
+                            Padding(
+                              padding: const EdgeInsets.only(top: 10, bottom: 6),
+                              child: Row(children: [
+                                Icon(Icons.storefront_rounded, size: 13, color: palette.fg),
+                                const SizedBox(width: 6),
+                                Text(vendorLabel, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: textPrimary)),
+                                const SizedBox(width: 6),
+                                Text('· ${vehicles.length}', style: TextStyle(fontSize: 11, color: textSecondary)),
+                              ]),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Text('${v['plate']}', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: textPrimary)),
-                              const SizedBox(height: 2),
-                              Text('${v['type']} · ${v['vendor']}', style: TextStyle(fontSize: 10.5, color: textSecondary), overflow: TextOverflow.ellipsis),
-                            ])),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                              decoration: BoxDecoration(color: const Color(0xFFE8F5E9), borderRadius: BorderRadius.circular(20)),
-                              child: Text('${v['status']}', style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, color: _green)),
-                            ),
-                          ]),
-                        );
+                            ...vehicles.map((v) {
+                              final style = _vehicleTypeStyle('${v['type']}');
+                              return _AccentCard(
+                                isDark: isDark, cardBg: cardBg, accentColor: palette.fg,
+                                child: Row(children: [
+                                  Container(
+                                    width: 34, height: 34,
+                                    decoration: BoxDecoration(color: palette.bg, borderRadius: BorderRadius.circular(9)),
+                                    child: Icon(style.icon, size: 16, color: palette.fg),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                    Text('${v['plate']}', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: textPrimary)),
+                                    const SizedBox(height: 2),
+                                    Text('${v['type']}', style: TextStyle(fontSize: 10.5, color: textSecondary), overflow: TextOverflow.ellipsis),
+                                  ])),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                                    decoration: BoxDecoration(color: const Color(0xFFE8F5E9), borderRadius: BorderRadius.circular(20)),
+                                    child: Text('${v['status']}', style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, color: _green)),
+                                  ),
+                                ]),
+                              );
+                            }),
+                          ];
                         }),
                     ],
                   ],
@@ -328,7 +404,8 @@ class _AccentCard extends StatelessWidget {
   final bool isDark;
   final Color cardBg, accentColor;
   final Widget child;
-  const _AccentCard({required this.isDark, required this.cardBg, required this.accentColor, required this.child});
+  final bool selected;
+  const _AccentCard({required this.isDark, required this.cardBg, required this.accentColor, required this.child, this.selected = false});
 
   @override
   Widget build(BuildContext context) {
@@ -337,6 +414,7 @@ class _AccentCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: cardBg,
         borderRadius: BorderRadius.circular(12),
+        border: selected ? Border.all(color: accentColor, width: 1.5) : null,
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(isDark ? 0.2 : 0.05), blurRadius: 6, offset: const Offset(0, 2))],
       ),
       child: IntrinsicHeight(

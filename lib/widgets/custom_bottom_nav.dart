@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class CustomBottomNav extends StatelessWidget {
   final int selectedIndex;
@@ -42,35 +43,54 @@ class CustomBottomNav extends StatelessWidget {
               BoxShadow(color: Colors.black.withOpacity(isDark ? 0.3 : 0.08), blurRadius: 12, offset: const Offset(0, 4)),
             ],
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: List.generate(items.length, (index) {
-              final isSelected = index == selectedIndex;
-              final item = items[index];
+          // A single detector handles both a plain tap and a finger sliding
+          // across the bar (like iOS's keyboard-switcher / WhatsApp emoji-tab
+          // scrubbing) — one recognizer, so there's nothing for a tap and a
+          // drag to fight over.
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              void trackAt(double dx) {
+                final itemWidth = constraints.maxWidth / items.length;
+                final index = (dx / itemWidth).floor().clamp(0, items.length - 1);
+                if (index != selectedIndex) {
+                  HapticFeedback.selectionClick();
+                  onTap(index);
+                }
+              }
+
               return GestureDetector(
-                onTap: () => onTap(index),
                 behavior: HitTestBehavior.opaque,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: isSelected ? selectedBg : Colors.transparent,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(item.icon, size: 20, color: isSelected ? _gold : unselectedColor),
-                      const SizedBox(height: 3),
-                      Text(item.label, style: TextStyle(
-                        fontSize: 10.5,
-                        color: isSelected ? _gold : unselectedColor,
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                      )),
-                    ],
-                  ),
+                onTapDown: (details) => trackAt(details.localPosition.dx),
+                onHorizontalDragStart: (details) => trackAt(details.localPosition.dx),
+                onHorizontalDragUpdate: (details) => trackAt(details.localPosition.dx),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: List.generate(items.length, (index) {
+                    final isSelected = index == selectedIndex;
+                    final item = items[index];
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isSelected ? selectedBg : Colors.transparent,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(item.icon, size: 20, color: isSelected ? _gold : unselectedColor),
+                          const SizedBox(height: 3),
+                          Text(item.label, style: TextStyle(
+                            fontSize: 10.5,
+                            color: isSelected ? _gold : unselectedColor,
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                          )),
+                        ],
+                      ),
+                    );
+                  }),
                 ),
               );
-            }),
+            },
           ),
         ),
       ),

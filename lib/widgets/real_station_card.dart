@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/real_station.dart';
 import '../screens/transportation_station_detail_screen.dart';
+import '../screens/flight_risk_detail_screen.dart';
 
 class RealStationCard extends StatefulWidget {
   final RealStation station;
@@ -137,6 +138,17 @@ class _RealStationCardState extends State<RealStationCard> {
                       ),
                     ),
                     child: Icon(Icons.info_outline, size: 12, color: _gold),
+                  ),
+                  const SizedBox(width: 2),
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => FlightRiskDetailScreen(
+                        stationCode: widget.station.code,
+                        stationCity: widget.station.cityLabel,
+                      ),
+                    )),
+                    child: Icon(Icons.chevron_right, size: 14, color: _gold),
                   ),
                 ]),
               ),
