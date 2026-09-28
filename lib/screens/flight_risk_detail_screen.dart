@@ -147,23 +147,18 @@ class _FlightRiskDetailScreenState extends State<FlightRiskDetailScreen> {
     final rawFields = (flight['raw'] as Map?)?.cast<String, dynamic>() ?? {};
     String? destination;
     String? delayChance;
-    String? delayThreshold;
-    // Think Lumo's delay-probability column is named after whatever threshold
-    // was picked at export time — "P(>=15m)", "P(>=30m)", "P(>=60m)", etc.
-    // Match the pattern generically instead of one hardcoded threshold, so it
-    // keeps working no matter which one a given export used.
-    final delayColumnPattern = RegExp(r'p\(.*?(\d+)\s*m\)');
+    // We always want the >30 minute delay probability specifically — not
+    // whatever threshold a given Think Lumo export happened to use. If that
+    // export was made with a different metric (e.g. P(>=15m)), the P(>=30m)
+    // column simply won't be in this row, and we show nothing rather than a
+    // number for the wrong threshold.
     for (final entry in rawFields.entries) {
       final key = entry.key.toLowerCase();
       if (destination == null && key.contains('destination')) {
         destination = '${entry.value}';
       }
-      if (delayChance == null) {
-        final match = delayColumnPattern.firstMatch(key);
-        if (match != null) {
-          delayChance = '${entry.value}';
-          delayThreshold = match.group(1);
-        }
+      if (delayChance == null && key.contains('30m')) {
+        delayChance = '${entry.value}';
       }
     }
     double? delayChancePct;
@@ -212,10 +207,7 @@ class _FlightRiskDetailScreenState extends State<FlightRiskDetailScreen> {
               decoration: BoxDecoration(color: _gold.withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
               child: Column(children: [
                 Text('${delayChancePct.toStringAsFixed(0)}%', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: _gold)),
-                Text(
-                  delayThreshold != null ? 'delay risk (≥${delayThreshold}m)' : 'delay risk',
-                  style: const TextStyle(fontSize: 9, color: _gold),
-                ),
+                const Text('delay risk (>30m)', style: TextStyle(fontSize: 9, color: _gold)),
               ]),
             ),
         ]),
