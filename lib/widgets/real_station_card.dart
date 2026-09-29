@@ -104,53 +104,34 @@ class _RealStationCardState extends State<RealStationCard> {
             ),
             if (widget.station.flightRiskTomorrow != null || widget.station.flightRiskNext5Days != null) ...[
               const SizedBox(height: 4),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(color: _gold.withOpacity(0.15), borderRadius: BorderRadius.circular(16)),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(Icons.flight_takeoff, size: 10, color: _gold),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Tmr ${widget.station.flightRiskTomorrow ?? 0} · Week ${widget.station.flightRiskNext5Days ?? 0}',
-                    style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, color: _gold),
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => FlightRiskDetailScreen(
+                    stationCode: widget.station.code,
+                    stationCity: widget.station.cityLabel,
                   ),
-                  const SizedBox(width: 4),
-                  GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => showDialog(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        title: const Text('Flights at Risk'),
-                        content: const Text(
-                          'Flights departing from this station that Think Lumo '
-                          'predicts will be delayed 30+ minutes.\n\n'
-                          '"Tmr" = flights at risk tomorrow.\n'
-                          '"Week" = flights at risk in the coming 5 days.\n\n'
-                          'A delayed flight can mean crew or passengers need '
-                          'last-minute hotel rooms at this station.\n\n'
-                          'Data comes from a CSV export from Think Lumo. '
-                          'Only admin can add or update this — it is not '
-                          'uploaded from within the app.',
-                        ),
-                        actions: [
-                          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Got it')),
-                        ],
+                )),
+                // Padding beyond the chip's own visible bounds so the tap
+                // target is bigger than what's drawn — easier to hit without
+                // needing to land exactly on the small chip itself.
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                    decoration: BoxDecoration(color: _gold.withOpacity(0.15), borderRadius: BorderRadius.circular(16)),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.flight_takeoff, size: 10, color: _gold),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Tmr ${widget.station.flightRiskTomorrow ?? 0} · Week ${widget.station.flightRiskNext5Days ?? 0}',
+                        style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, color: _gold),
                       ),
-                    ),
-                    child: Icon(Icons.info_outline, size: 12, color: _gold),
+                      const SizedBox(width: 4),
+                      Icon(Icons.chevron_right, size: 14, color: _gold),
+                    ]),
                   ),
-                  const SizedBox(width: 2),
-                  GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => FlightRiskDetailScreen(
-                        stationCode: widget.station.code,
-                        stationCity: widget.station.cityLabel,
-                      ),
-                    )),
-                    child: Icon(Icons.chevron_right, size: 14, color: _gold),
-                  ),
-                ]),
+                ),
               ),
             ],
           ]),
@@ -186,12 +167,18 @@ class _RealStationCardState extends State<RealStationCard> {
                     city: widget.station.cityLabel,
                   ),
                 )),
-                child: _statRow(
-                  'Transport',
-                  '${widget.station.vehicleCount}',
-                  _navy,
-                  textSecondary,
-                  trailing: Icon(Icons.chevron_right, size: 13, color: _navy),
+                // Extra vertical padding beyond the row's own text height —
+                // the other stat rows sit right above/below this one, so a
+                // taller tap zone makes it much easier to land on.
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: _statRow(
+                    'Transport',
+                    '${widget.station.vehicleCount}',
+                    _navy,
+                    textSecondary,
+                    trailing: Icon(Icons.chevron_right, size: 13, color: _navy),
+                  ),
                 ),
               ),
             _statRow('Hotels',     '${widget.station.hotelCount}',                  textPrimary,  textSecondary),
