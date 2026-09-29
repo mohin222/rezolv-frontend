@@ -65,6 +65,10 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+    // Android 13+ blocks all notifications from an app until it explicitly
+    // asks for this permission — without it, Firebase can deliver messages
+    // successfully and the app never shows anything for them.
+    await FirebaseMessaging.instance.requestPermission();
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
     _setupForegroundNotifications();
   }
