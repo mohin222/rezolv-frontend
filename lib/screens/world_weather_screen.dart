@@ -24,6 +24,7 @@ class _WorldWeatherScreenState extends State<WorldWeatherScreen> {
   Map<String, List<Map<String, dynamic>>> _continents = {};
   final _searchCtrl = TextEditingController();
   String _query = '';
+  String? _selectedContinent;
 
   static const _continentOrder = ['Asia', 'Europe', 'America', 'Africa', 'Australia'];
   static const _continentIcons = {
@@ -108,6 +109,35 @@ class _WorldWeatherScreenState extends State<WorldWeatherScreen> {
       return ai.compareTo(bi);
     });
     return keys;
+  }
+
+  /// Continents actually visible after the continent-picker filter is
+  /// applied on top of search — "All Continents" shows everything.
+  List<String> get _visibleContinents {
+    if (_selectedContinent == null) return _orderedContinents;
+    return _orderedContinents.where((c) => c == _selectedContinent).toList();
+  }
+
+  static const _riskOrder = {'LIFR': 0, 'IFR': 1};
+
+  /// Every station (across the whole network, ignoring the continent
+  /// picker but respecting search) currently rated Poor or Very Poor
+  /// visibility — worst first, so the stations that actually matter for
+  /// flight risk aren't buried in a 100+ card scroll.
+  List<Map<String, dynamic>> get _riskStations {
+    final all = <Map<String, dynamic>>[];
+    for (final stations in _filteredContinents.values) {
+      for (final s in stations) {
+        final category = ((s['current'] as Map?)?['flight_category']) as String?;
+        if (_riskOrder.containsKey(category)) all.add(s);
+      }
+    }
+    all.sort((a, b) {
+      final ca = ((a['current'] as Map?)?['flight_category']) as String?;
+      final cb = ((b['current'] as Map?)?['flight_category']) as String?;
+      return (_riskOrder[ca] ?? 9).compareTo(_riskOrder[cb] ?? 9);
+    });
+    return all;
   }
 
   @override
@@ -197,6 +227,25 @@ class _WorldWeatherScreenState extends State<WorldWeatherScreen> {
                   ),
                 ),
               ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: GestureDetector(
+                  onTap: () => _pickContinent(context, cardBg, textPrimary, textSecondary, borderColor),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                    decoration: BoxDecoration(color: cardBg, borderRadius: BorderRadius.circular(10), border: Border.all(color: borderColor)),
+                    child: Row(children: [
+                      Icon(Icons.public_rounded, size: 16, color: textSecondary),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(_selectedContinent ?? 'All continents',
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textPrimary)),
+                      ),
+                      Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: textSecondary),
+                    ]),
+                  ),
+                ),
+              ),
               Expanded(
                 child: _filteredContinents.isEmpty
                     ? Center(child: Text('No stations match "$_query"', style: TextStyle(fontSize: 13, color: textSecondary)))
@@ -206,7 +255,13 @@ class _WorldWeatherScreenState extends State<WorldWeatherScreen> {
                   child: ListView(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                     children: [
-                      for (final continent in _orderedContinents) ...[
+                      if (_riskStations.isNotEmpty) ...[
+                        _riskHeader(_riskStations.length, textPrimary, textSecondary),
+                        const SizedBox(height: 10),
+                        _riskStrip(_riskStations, cardBg, borderColor, textPrimary, textSecondary),
+                        const SizedBox(height: 22),
+                      ],
+                      for (final continent in _visibleContinents) ...[
                         _continentHeader(continent, _filteredContinents[continent]!.length, textPrimary, textSecondary),
                         const SizedBox(height: 10),
                         _continentGrid(_filteredContinents[continent]!, cardBg, borderColor, textPrimary, textSecondary),
@@ -217,6 +272,115 @@ class _WorldWeatherScreenState extends State<WorldWeatherScreen> {
                 ),
               ),
             ],
+        ]),
+      ),
+    );
+  }
+
+  void _pickContinent(BuildContext context, Color cardBg, Color textPrimary, Color textSecondary, Color borderColor) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: cardBg,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Center(child: Container(width: 36, height: 4, decoration: BoxDecoration(color: textSecondary.withOpacity(0.3), borderRadius: BorderRadius.circular(2)))),
+            const SizedBox(height: 16),
+            Text('Browse by continent', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: textPrimary)),
+            const SizedBox(height: 12),
+            _continentOption(ctx, null, 'All continents', _continents.values.fold<int>(0, (sum, l) => sum + l.length), textPrimary, textSecondary),
+            for (final c in _orderedContinents)
+              _continentOption(ctx, c, c, _continents[c]?.length ?? 0, textPrimary, textSecondary),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _continentOption(BuildContext ctx, String? value, String label, int count, Color textPrimary, Color textSecondary) {
+    final selected = _selectedContinent == value;
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(value == null ? Icons.public_rounded : (_continentIcons[value] ?? Icons.public_rounded),
+          size: 20, color: selected ? _navy : textSecondary),
+      title: Text(label, style: TextStyle(fontSize: 14, fontWeight: selected ? FontWeight.w700 : FontWeight.w400, color: textPrimary)),
+      trailing: Text('$count', style: TextStyle(fontSize: 12, color: textSecondary)),
+      onTap: () {
+        setState(() => _selectedContinent = value);
+        Navigator.pop(ctx);
+      },
+    );
+  }
+
+  Widget _riskHeader(int count, Color textPrimary, Color textSecondary) {
+    return Row(children: [
+      Container(
+        width: 30, height: 30,
+        decoration: BoxDecoration(color: _red.withOpacity(0.1), borderRadius: BorderRadius.circular(9)),
+        child: const Center(child: Icon(Icons.visibility_off_rounded, size: 15, color: _red)),
+      ),
+      const SizedBox(width: 10),
+      Text('Risk Weather', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: textPrimary)),
+      const SizedBox(width: 8),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        decoration: BoxDecoration(color: _red.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+        child: Text('$count', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: _red)),
+      ),
+    ]);
+  }
+
+  Widget _riskStrip(List<Map<String, dynamic>> stations, Color cardBg, Color borderColor, Color textPrimary, Color textSecondary) {
+    return SizedBox(
+      height: 112,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: stations.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (context, i) => _riskCard(stations[i], cardBg, borderColor, textPrimary, textSecondary),
+      ),
+    );
+  }
+
+  Widget _riskCard(Map<String, dynamic> weather, Color cardBg, Color borderColor, Color textPrimary, Color textSecondary) {
+    final current = (weather['current'] as Map?)?.cast<String, dynamic>() ?? {};
+    final station = weather['station'] as String? ?? '—';
+    final city = weather['city'] as String?;
+    final tempC = current['temp_c'];
+    final condition = (current['condition'] as String?) ?? '';
+    final category = current['flight_category'] as String?;
+    final categoryLabel = current['flight_category_label'] as String?;
+    final color = _categoryColor(category);
+
+    return GestureDetector(
+      onTap: () => _showStationDetail(context, weather, cardBg, textPrimary, textSecondary, borderColor),
+      child: Container(
+        width: 168,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: cardBg,
+          borderRadius: BorderRadius.circular(10),
+          border: Border(left: BorderSide(color: color, width: 4)),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 5, offset: const Offset(0, 2))],
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Text(station, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: textPrimary)),
+            const SizedBox(width: 4),
+            Expanded(child: Text(city ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10.5, color: textSecondary))),
+          ]),
+          const Spacer(),
+          Text(tempC != null ? '$tempC° · $condition' : condition,
+              maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: textSecondary)),
+          const SizedBox(height: 6),
+          if (categoryLabel != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+              decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(6)),
+              child: Text(categoryLabel, style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: color)),
+            ),
         ]),
       ),
     );
