@@ -415,6 +415,38 @@ class ApiRepository {
     }
   }
 
+  /// Weather for every station in the flight network, grouped by
+  /// continent. Cold on the server this can take ~20s (150+ stations
+  /// fetched in parallel, then cached server-side for 30 min) — hence the
+  /// longer timeout than other calls.
+  Future<Map<String, List<Map<String, dynamic>>>?> fetchWorldWeather() async {
+    const cacheKey = 'world_weather';
+    try {
+      final data = await _withRetry(() async {
+        final uri = Uri.parse('${ApiConfig.baseUrl}/api/weather/world/');
+        final response = await http.get(uri, headers: await _headers())
+            .timeout(const Duration(seconds: 45));
+        _checkUnauthorized(response);
+        if (response.statusCode != 200) throw Exception('Failed to load world weather');
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      });
+      await OfflineCache.save(cacheKey, data);
+      return _continentsMap(data);
+    } on UnauthorizedException {
+      rethrow;
+    } catch (_) {
+      final cached = await OfflineCache.load(cacheKey);
+      if (cached is Map) return _continentsMap(cached.cast<String, dynamic>());
+      return null;
+    }
+  }
+
+  Map<String, List<Map<String, dynamic>>> _continentsMap(Map<String, dynamic> data) {
+    final continents = (data['continents'] as Map?)?.cast<String, dynamic>() ?? {};
+    return continents.map((key, value) =>
+        MapEntry(key, (value as List).cast<Map>().map((e) => e.cast<String, dynamic>()).toList()));
+  }
+
   /// AI / AIX booking numbers (airline is 'AI' or 'IX'). A failure the
   /// server explains (e.g. Odoo not configured / unreachable) is thrown as
   /// a BookingsException carrying that message; with no connection it falls

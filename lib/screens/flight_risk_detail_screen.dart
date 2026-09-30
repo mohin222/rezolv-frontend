@@ -207,9 +207,11 @@ class _FlightRiskDetailScreenState extends State<FlightRiskDetailScreen> {
             Text('About This Data', style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold, color: textPrimary)),
           ]),
           const SizedBox(height: 18),
-          _infoRow(Icons.source_outlined, 'Source', 'Think Lumo\'s departure delay forecast, updated whenever an admin uploads a fresh CSV export — not generated inside the app.', textPrimary, textSecondary),
+          _infoRow(Icons.source_outlined, 'Source', 'Live from Think Lumo\'s flight delay prediction API — covers every airline flying through this station, refreshed automatically, no manual upload needed.', textPrimary, textSecondary),
           const SizedBox(height: 14),
-          _infoRow(Icons.query_stats_rounded, 'Risk percentages', 'The chance a flight departs at least 30, 90, or 180 minutes late, taken directly from that export.', textPrimary, textSecondary),
+          _infoRow(Icons.query_stats_rounded, 'Risk percentages', 'The chance a flight departs at least 30, 90, 180, or 240+ minutes late.', textPrimary, textSecondary),
+          const SizedBox(height: 14),
+          _infoRow(Icons.info_outline_rounded, 'Why it\'s flagged', 'The line under the risk badges explains what\'s driving the prediction — things like weather, air traffic control, or a delayed inbound aircraft.', textPrimary, textSecondary),
           const SizedBox(height: 14),
           _infoRow(Icons.hotel_outlined, 'Why it matters', 'A high-risk flight can mean crew or passengers need last-minute rooms at this station — plan availability accordingly.', textPrimary, textSecondary),
           const SizedBox(height: 14),
@@ -281,20 +283,24 @@ class _FlightRiskDetailScreenState extends State<FlightRiskDetailScreen> {
     final flightNumber = (flight['flight_number'] as String?)?.trim();
     final airline = flight['airline'] as String?;
     final departure = _parseRawDateTime(flight['departure_time'] as String?);
+    final estimatedDeparture = _parseRawDateTime(flight['estimated_departure_time'] as String?);
+    final estimatedArrival = _parseRawDateTime(flight['estimated_arrival_time'] as String?);
+    final delayReason = flight['delay_reason'] as String?;
 
     final rawFields = (flight['raw'] as Map?)?.cast<String, dynamic>() ?? {};
     String? destination;
     DateTime? arrival;
-    double? p30, p90, p180;
     for (final entry in rawFields.entries) {
       final key = entry.key.toLowerCase().trim();
       final value = '${entry.value}';
       if (destination == null && key.contains('destination')) destination = value;
       if (arrival == null && key.contains('arrival')) arrival = _parseRawDateTime(value);
-      if (p30 == null && key == 'p 30') p30 = double.tryParse(value);
-      if (p90 == null && key == 'p 90') p90 = double.tryParse(value);
-      if (p180 == null && key == 'p 180') p180 = double.tryParse(value);
     }
+
+    final departureDelayed = estimatedDeparture != null && departure != null &&
+        estimatedDeparture.difference(departure).inMinutes.abs() >= 5;
+    final arrivalDelayed = estimatedArrival != null && arrival != null &&
+        estimatedArrival.difference(arrival).inMinutes.abs() >= 5;
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -355,31 +361,40 @@ class _FlightRiskDetailScreenState extends State<FlightRiskDetailScreen> {
         ]),
         const SizedBox(height: 12),
 
-        // Delay risk — 30, 90 and 180 minute buckets, in one neat row
-        if (p30 != null || p90 != null || p180 != null)
-          Row(children: [
-            if (p30 != null) Expanded(child: _delayBadge('30 min', p30)),
-            if (p30 != null && (p90 != null || p180 != null)) const SizedBox(width: 8),
-            if (p90 != null) Expanded(child: _delayBadge('90 min', p90)),
-            if (p90 != null && p180 != null) const SizedBox(width: 8),
-            if (p180 != null) Expanded(child: _delayBadge('180 min', p180)),
-          ]),
+        // Estimated departure / arrival — the actual predicted times,
+        // colored red when they differ meaningfully from schedule.
+        Row(children: [
+          Expanded(child: _timeBox('EST. DEPARTURE', estimatedDeparture ?? departure, departureDelayed)),
+          const SizedBox(width: 8),
+          Expanded(child: _timeBox('EST. ARRIVAL', estimatedArrival ?? arrival, arrivalDelayed)),
+        ]),
+        if (delayReason != null && delayReason.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(color: _gold.withOpacity(0.08), borderRadius: BorderRadius.circular(8)),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Icon(Icons.info_outline_rounded, size: 15, color: _gold),
+              const SizedBox(width: 8),
+              Expanded(child: Text(delayReason,
+                  style: TextStyle(fontSize: 12.5, color: textPrimary, height: 1.4, fontWeight: FontWeight.w500))),
+            ]),
+          ),
+        ],
       ]),
     );
   }
 
-  Widget _delayBadge(String label, double pct) {
-    final color = pct >= 50 ? _red : _gold;
-    // Stacked vertically, not side-by-side — a Row here can overflow its
-    // fixed third-of-the-card width once the percentage hits 3 digits
-    // worth of visual weight (e.g. "100%" next to "risk >90 min").
+  Widget _timeBox(String label, DateTime? time, bool delayed) {
+    final color = delayed ? _red : _gold;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
       decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         Text(
-          '${pct.toStringAsFixed(0)}%',
+          time != null ? _timeFmt.format(time) : '—',
           textAlign: TextAlign.center,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
@@ -387,7 +402,7 @@ class _FlightRiskDetailScreenState extends State<FlightRiskDetailScreen> {
         ),
         const SizedBox(height: 2),
         Text(
-          'risk >$label',
+          label,
           textAlign: TextAlign.center,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,

@@ -5,6 +5,7 @@ import '../widgets/real_station_card.dart';
 import 'real_station_drilldown_screen.dart';
 import '../utils/app_version.dart';
 import 'notifications_screen.dart';
+import 'world_weather_screen.dart';
 
 class RealOverviewScreen extends StatefulWidget {
   final ValueChanged<int> onNavigateToTab;
@@ -407,6 +408,44 @@ class _RealOverviewScreenState extends State<RealOverviewScreen> {
                   )),
                 ]),
               ]),
+            ),
+
+            ClipRect(
+              child: Align(
+                alignment: Alignment.topCenter,
+                heightFactor: (1 - _collapseProgress).clamp(0.0, 1.0),
+                child: Opacity(
+                  opacity: bannerOpacity,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+                    child: GestureDetector(
+                      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const WorldWeatherScreen())),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            begin: Alignment.topLeft, end: Alignment.bottomRight,
+                            colors: [Color(0xFF0D2B4E), Color(0xFF1D4E7A)],
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(children: [
+                          Container(
+                            width: 26, height: 26,
+                            decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(7)),
+                            child: const Center(child: Icon(Icons.public_rounded, color: Colors.white, size: 14)),
+                          ),
+                          const SizedBox(width: 10),
+                          const Expanded(
+                            child: Text('Weather', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
+                          ),
+                          const Icon(Icons.chevron_right_rounded, color: Colors.white70, size: 18),
+                        ]),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ),
 
             Padding(
