@@ -309,31 +309,31 @@ class _FlightRiskDetailScreenState extends State<FlightRiskDetailScreen> {
           Expanded(child: Row(children: [
             Text(
               (flightNumber == null || flightNumber.isEmpty) ? 'Flight number unavailable' : flightNumber,
-              style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: textPrimary),
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: textPrimary),
             ),
             if (airline != null) ...[
               const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(color: textSecondary.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
-                child: Text(airline, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: textSecondary)),
+                child: Text(airline, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w400, color: textSecondary)),
               ),
             ],
           ])),
           if (departure != null)
-            Text(_dateFmt.format(departure), style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: textSecondary)),
+            Text(_dateFmt.format(departure), style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w400, color: textSecondary)),
         ]),
         const SizedBox(height: 12),
 
         // Route — times only, no date (date is already shown above)
         Row(children: [
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(widget.stationCode, style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: textPrimary)),
+            Text(widget.stationCode, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: textPrimary)),
             const SizedBox(height: 2),
-            Text('DEPARTS', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: textSecondary, letterSpacing: 0.6)),
+            Text('DEPARTS', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w500, color: textSecondary, letterSpacing: 0.6)),
             Text(
               departure != null ? _timeFmt.format(departure) : '—',
-              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: textPrimary),
+              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w400, color: textPrimary),
             ),
           ])),
           Padding(
@@ -341,12 +341,12 @@ class _FlightRiskDetailScreenState extends State<FlightRiskDetailScreen> {
             child: Icon(Icons.arrow_forward_rounded, size: 18, color: textSecondary),
           ),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            Text(destination ?? '—', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: textPrimary)),
+            Text(destination ?? '—', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: textPrimary)),
             const SizedBox(height: 2),
-            Text('ARRIVES', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: textSecondary, letterSpacing: 0.6)),
+            Text('ARRIVES', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w500, color: textSecondary, letterSpacing: 0.6)),
             Text(
               arrival != null ? _timeFmt.format(arrival) : '—',
-              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: textPrimary),
+              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w400, color: textPrimary),
               textAlign: TextAlign.end,
             ),
           ])),
@@ -361,7 +361,7 @@ class _FlightRiskDetailScreenState extends State<FlightRiskDetailScreen> {
               Icon(Icons.info_outline_rounded, size: 15, color: _gold),
               const SizedBox(width: 8),
               Expanded(child: Text(delayReason,
-                  style: TextStyle(fontSize: 12.5, color: textPrimary, height: 1.4, fontWeight: FontWeight.w500))),
+                  style: TextStyle(fontSize: 12.5, color: textPrimary, height: 1.4, fontWeight: FontWeight.w400))),
             ]),
           ),
         ],
