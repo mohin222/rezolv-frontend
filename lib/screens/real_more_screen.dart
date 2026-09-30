@@ -173,27 +173,40 @@ class _RealMoreScreenState extends State<RealMoreScreen> {
         _buildProfileCard(isDark, cardBg, textPrimary, textSecondary),
         const SizedBox(height: 20),
         _sectionLabel('DATA STATUS', labelColor),
-        _card(cardBg, dividerColor, [
-          _row('Last sync', _syncLabel, textSecondary, textPrimary),
-          _row('Active stations', '${widget.stations.length}', textSecondary, textPrimary),
-          _row('Total hotels', '$_totalActiveHotels', textSecondary, textPrimary),
+        _card(cardBg, dividerColor, isDark: isDark, [
+          _row('Last sync', _syncLabel, textSecondary, textPrimary, icon: Icons.schedule_rounded, iconColor: _navy),
+          _row('Active stations', '${widget.stations.length}', textSecondary, textPrimary, icon: Icons.flight_takeoff_rounded, iconColor: _gold),
+          _row('Total hotels', '$_totalActiveHotels', textSecondary, textPrimary, icon: Icons.hotel_rounded, iconColor: _navy),
         ]),
         const SizedBox(height: 20),
         _sectionLabel("TODAY'S SNAPSHOT", labelColor),
-        _card(cardBg, dividerColor, [
-          _row('Total available rooms', '$_totalRoomsAvailable', textSecondary, const Color(0xFF1B7A3D)),
+        _card(cardBg, dividerColor, isDark: isDark, [
+          _row('Total available rooms', '$_totalRoomsAvailable', textSecondary, const Color(0xFF1B7A3D),
+              icon: Icons.king_bed_rounded, iconColor: const Color(0xFF1B7A3D)),
           InkWell(
             onTap: () => widget.onNavigateToTab(1),
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 10),
               child: Row(children: [
-                Expanded(child: Text('Sold out / Stop-sell', style: TextStyle(fontSize: 13.5, color: textSecondary))),
-                Text('$_soldOutHotels', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFFC62828))),
-                Text(' sold out', style: TextStyle(fontSize: 12, color: textSecondary)),
-                Text('  ·  ', style: TextStyle(color: textSecondary)),
-                Text('$_stopsellHotels', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.orange.shade700)),
-                Text(' stop-sell', style: TextStyle(fontSize: 12, color: textSecondary)),
-                const SizedBox(width: 4),
+                Container(
+                  width: 26, height: 26,
+                  decoration: BoxDecoration(color: const Color(0xFFC62828).withOpacity(0.12), borderRadius: BorderRadius.circular(7)),
+                  child: const Center(child: Icon(Icons.report_gmailerrorred_rounded, size: 13, color: Color(0xFFC62828))),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Sold out / Stop-sell', style: TextStyle(fontSize: 13.5, color: textSecondary)),
+                    const SizedBox(height: 3),
+                    Row(children: [
+                      Text('$_soldOutHotels', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFFC62828))),
+                      Text(' sold out', style: TextStyle(fontSize: 11.5, color: textSecondary)),
+                      Text('  ·  ', style: TextStyle(color: textSecondary)),
+                      Text('$_stopsellHotels', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.orange.shade700)),
+                      Text(' stop-sell', style: TextStyle(fontSize: 11.5, color: textSecondary)),
+                    ]),
+                  ]),
+                ),
                 Icon(Icons.chevron_right, size: 16, color: textSecondary),
               ]),
             ),
@@ -201,61 +214,41 @@ class _RealMoreScreenState extends State<RealMoreScreen> {
         ]),
         const SizedBox(height: 20),
         _sectionLabel('ACTIONS', labelColor),
-        _card(cardBg, dividerColor, [
-          InkWell(
+        _card(cardBg, dividerColor, isDark: isDark, [
+          _actionRow(
+            icon: Icons.refresh_rounded, iconColor: _navy, label: 'Reload app',
+            textColor: textPrimary, trailingColor: textSecondary,
             onTap: () => widget.onReload(),
-            child: SizedBox(
-              height: 48,
-              child: Row(children: [
-                Icon(Icons.refresh, size: 20, color: textPrimary),
-                const SizedBox(width: 10),
-                Expanded(child: Text('Reload app', style: TextStyle(fontSize: 14, color: textPrimary))),
-                Icon(Icons.chevron_right, size: 18, color: textSecondary),
-              ]),
+          ),
+          _actionRow(
+            icon: Icons.dark_mode_rounded, iconColor: _gold, label: 'Dark mode',
+            textColor: textPrimary, trailingColor: textSecondary,
+            trailing: Switch(
+              value: themeProvider.isDarkMode,
+              onChanged: (value) => context.read<ThemeProvider>().toggleDarkMode(value),
+              activeColor: _gold,
             ),
           ),
-          SizedBox(
-            height: 48,
-            child: Row(children: [
-              Icon(Icons.dark_mode_outlined, size: 20, color: textPrimary),
-              const SizedBox(width: 10),
-              Expanded(child: Text('Dark mode', style: TextStyle(fontSize: 14, color: textPrimary))),
-              Switch(
-                value: themeProvider.isDarkMode,
-                onChanged: (value) => context.read<ThemeProvider>().toggleDarkMode(value),
-                activeColor: _gold,
-              ),
-            ]),
-          ),
-          InkWell(
-            onTap: () {
-              Share.share(
-                'Rezolv Inventory · Live Snapshot\n'
-                    '$_totalActiveHotels hotels across ${widget.stations.length} stations\n'
-                    '$_totalRoomsAvailable rooms available right now\n'
-                    '$_soldOutHotels sold out, $_stopsellHotels on stop-sell',
-              );
-            },
-            child: SizedBox(
-              height: 48,
-              child: Row(children: [
-                Icon(Icons.share, size: 20, color: textPrimary),
-                const SizedBox(width: 10),
-                Expanded(child: Text('Share network summary', style: TextStyle(fontSize: 14, color: textPrimary))),
-                Icon(Icons.chevron_right, size: 18, color: textSecondary),
-              ]),
+          _actionRow(
+            icon: Icons.ios_share_rounded, iconColor: _navy, label: 'Share network summary',
+            textColor: textPrimary, trailingColor: textSecondary,
+            onTap: () => Share.share(
+              'Rezolv Inventory · Live Snapshot\n'
+                  '$_totalActiveHotels hotels across ${widget.stations.length} stations\n'
+                  '$_totalRoomsAvailable rooms available right now\n'
+                  '$_soldOutHotels sold out, $_stopsellHotels on stop-sell',
             ),
           ),
         ]),
         const SizedBox(height: 20),
         _sectionLabel('ABOUT', labelColor),
-        _card(cardBg, dividerColor, [
-          _row('App', 'Rezolv Inventory', textSecondary, textPrimary),
-          _row('Version', AppVersion.version, textSecondary, textPrimary),
+        _card(cardBg, dividerColor, isDark: isDark, [
+          _row('App', 'Rezolv Inventory', textSecondary, textPrimary, icon: Icons.apps_rounded, iconColor: _navy),
+          _row('Version', AppVersion.version, textSecondary, textPrimary, icon: Icons.new_releases_rounded, iconColor: _gold),
         ]),
         const SizedBox(height: 20),
         _sectionLabel('ACCOUNT', labelColor),
-        _card(cardBg, dividerColor, [
+        _card(cardBg, dividerColor, isDark: isDark, [
           InkWell(
             onTap: () async {
               final confirm = await showDialog<bool>(
@@ -282,10 +275,14 @@ class _RealMoreScreenState extends State<RealMoreScreen> {
             },
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Row(children: const [
-                Icon(Icons.logout, size: 20, color: Colors.red),
-                SizedBox(width: 10),
-                Text('Logout', style: TextStyle(fontSize: 14, color: Colors.red, fontWeight: FontWeight.w600)),
+              child: Row(children: [
+                Container(
+                  width: 26, height: 26,
+                  decoration: BoxDecoration(color: Colors.red.withOpacity(0.12), borderRadius: BorderRadius.circular(7)),
+                  child: const Center(child: Icon(Icons.logout_rounded, size: 13, color: Colors.red)),
+                ),
+                const SizedBox(width: 10),
+                const Text('Logout', style: TextStyle(fontSize: 14, color: Colors.red, fontWeight: FontWeight.w600)),
               ]),
             ),
           ),
@@ -306,6 +303,7 @@ class _RealMoreScreenState extends State<RealMoreScreen> {
         color: cardBg,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: isDark ? Colors.grey.shade800 : const Color(0xFFE9EAED)),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(isDark ? 0.2 : 0.04), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
@@ -359,7 +357,7 @@ class _RealMoreScreenState extends State<RealMoreScreen> {
     );
   }
 
-  Widget _card(Color cardBg, Color dividerColor, List<Widget> children) {
+  Widget _card(Color cardBg, Color dividerColor, List<Widget> children, {bool isDark = false}) {
     final spacedChildren = <Widget>[];
     for (var i = 0; i < children.length; i++) {
       spacedChildren.add(children[i]);
@@ -372,19 +370,48 @@ class _RealMoreScreenState extends State<RealMoreScreen> {
       decoration: BoxDecoration(
         color: cardBg,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: dividerColor),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(isDark ? 0.2 : 0.04), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Column(children: spacedChildren),
     );
   }
 
-  Widget _row(String label, String value, Color labelColor, Color valueColor) {
+  Widget _row(String label, String value, Color labelColor, Color valueColor, {IconData? icon, Color? iconColor}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-        Text(label, style: TextStyle(fontSize: 13.5, color: labelColor)),
+        Row(children: [
+          if (icon != null) ...[
+            Container(
+              width: 26, height: 26,
+              decoration: BoxDecoration(color: (iconColor ?? _navy).withOpacity(0.12), borderRadius: BorderRadius.circular(7)),
+              child: Center(child: Icon(icon, size: 13, color: iconColor ?? _navy)),
+            ),
+            const SizedBox(width: 10),
+          ],
+          Text(label, style: TextStyle(fontSize: 13.5, color: labelColor)),
+        ]),
         Flexible(child: Text(value, textAlign: TextAlign.right,
             style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: valueColor))),
       ]),
     );
+  }
+
+  Widget _actionRow({required IconData icon, required Color iconColor, required String label, required Color textColor, required Color trailingColor, Widget? trailing, VoidCallback? onTap}) {
+    final content = SizedBox(
+      height: 48,
+      child: Row(children: [
+        Container(
+          width: 30, height: 30,
+          decoration: BoxDecoration(color: iconColor.withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
+          child: Center(child: Icon(icon, size: 15, color: iconColor)),
+        ),
+        const SizedBox(width: 12),
+        Expanded(child: Text(label, style: TextStyle(fontSize: 14, color: textColor))),
+        trailing ?? Icon(Icons.chevron_right, size: 18, color: trailingColor),
+      ]),
+    );
+    return onTap != null ? InkWell(onTap: onTap, child: content) : content;
   }
 }

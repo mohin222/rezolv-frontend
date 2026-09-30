@@ -426,12 +426,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(),
         ),
-        const SizedBox(width: 6),
-        Row(children: [
-          Icon(Icons.circle, size: 7, color: _loading ? Colors.orange : Colors.green),
-          const SizedBox(width: 5),
-          Text(_loading ? 'Syncing' : 'Live', style: TextStyle(fontSize: 11, color: textPrimary)),
-        ]),
       ]),
     );
   }

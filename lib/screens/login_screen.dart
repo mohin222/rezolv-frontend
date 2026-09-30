@@ -2,10 +2,10 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:http/http.dart' as http;
 import '../data/api_config.dart';
 import '../data/api_repository.dart';
+import '../main.dart' show pushNotificationService;
 import 'main_shell.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -41,17 +41,7 @@ class _LoginScreenState extends State<LoginScreen> {
         phone:    result['phone']    ?? '',
       );
 
-      // Get FCM token and save to Django
-      try {
-        final fcmToken = await FirebaseMessaging.instance.getToken();
-        
-        if (fcmToken != null) {
-          await ApiRepository().saveFcmToken(fcmToken);
-          
-        }
-      } catch (e) {
-        
-      }
+      await pushNotificationService.registerToken();
 
       if (mounted) {
         Navigator.of(context).pushReplacement(

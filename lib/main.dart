@@ -4,79 +4,40 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'firebase_options.dart';
 import 'providers/theme_provider.dart';
+import 'services/notifications_store.dart';
+import 'services/push_notification_service.dart';
 import 'screens/splash_screen.dart';
 import 'utils/app_version.dart';
 import 'utils/trusted_http_overrides.dart';
 
-// Local notifications plugin
-final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-FlutterLocalNotificationsPlugin();
+/// Lets [InAppNotificationBanner] insert itself into the root Overlay from
+/// outside the widget tree, and gives the rest of the app one shared
+/// Navigator to push onto when a notification is tapped.
+final navigatorKey = GlobalKey<NavigatorState>();
 
-// Handle background messages
-@pragma('vm:entry-point')
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-}
-
-Future<void> _initLocalNotifications() async {
-  const AndroidInitializationSettings androidSettings =
-  AndroidInitializationSettings('@mipmap/ic_launcher');
-  const DarwinInitializationSettings iosSettings =
-  DarwinInitializationSettings();
-  const InitializationSettings initSettings = InitializationSettings(
-    android: androidSettings,
-    iOS: iosSettings,
-  );
-  await flutterLocalNotificationsPlugin.initialize(initSettings);
-}
-
-void _setupForegroundNotifications() {
-  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-    final notification = message.notification;
-    if (notification != null) {
-      flutterLocalNotificationsPlugin.show(
-        notification.hashCode,
-        notification.title,
-        notification.body,
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'rezolv_alerts',
-            'Rezolv Alerts',
-            channelDescription: 'Hotel sold out and stop-sell alerts',
-            importance: Importance.high,
-            priority: Priority.high,
-            icon: '@mipmap/ic_launcher',
-          ),
-        ),
-      );
-    }
-  });
-}
+final notificationsStore = NotificationsStore();
+final pushNotificationService = PushNotificationService(notificationsStore);
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   HttpOverrides.global = TrustedHttpOverrides();
+  await notificationsStore.load();
   // TODO: add iOS FirebaseOptions to firebase_options.dart once configured,
   // then remove this platform guard.
   if (defaultTargetPlatform == TargetPlatform.android) {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    // Android 13+ blocks all notifications from an app until it explicitly
-    // asks for this permission — without it, Firebase can deliver messages
-    // successfully and the app never shows anything for them.
-    await FirebaseMessaging.instance.requestPermission();
-    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-    _setupForegroundNotifications();
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    await pushNotificationService.init();
   }
-  await _initLocalNotifications();
   await AppVersion.init();
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => ThemeProvider(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider.value(value: notificationsStore),
+      ],
       child: const RezolvApp(),
     ),
   );
@@ -91,6 +52,7 @@ class RezolvApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeProvider = context.watch<ThemeProvider>();
     return MaterialApp(
+      navigatorKey: navigatorKey,
       title: 'Rezolv Inventory',
       debugShowCheckedModeBanner: false,
       themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,

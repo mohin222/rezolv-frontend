@@ -1,10 +1,9 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'main_shell.dart';
 import '../data/api_config.dart';
 import '../data/api_repository.dart';
+import '../main.dart' show pushNotificationService;
 import 'login_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -59,16 +58,6 @@ class _SplashScreenState extends State<SplashScreen>
 
     _controller.forward();
 
-    // Request notification permission immediately
-    // TODO: enable on iOS once Firebase iOS config is added.
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      FirebaseMessaging.instance.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-      );
-    }
-
     Timer(const Duration(milliseconds: 2600), () async {
       if (!mounted) return;
       final token = await ApiConfig.getToken();
@@ -85,14 +74,8 @@ class _SplashScreenState extends State<SplashScreen>
             phone:    userInfo['phone']    ?? '',
           );
 
-          // Get FCM token and save to Django
-          // TODO: enable on iOS once Firebase iOS config is added.
-          if (defaultTargetPlatform == TargetPlatform.android) {
-            final fcmToken = await FirebaseMessaging.instance.getToken();
-            if (fcmToken != null) {
-              await ApiRepository().saveFcmToken(fcmToken);
-            }
-          }
+          // Re-register in case the FCM token rotated since last login.
+          await pushNotificationService.registerToken();
 
           nextScreen = const MainShell();
         } on UnauthorizedException {

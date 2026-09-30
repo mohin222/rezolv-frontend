@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../data/api_repository.dart';
 import '../utils/error_messages.dart';
+import '../widgets/weather_strip.dart';
 
 class FlightRiskDetailScreen extends StatefulWidget {
   final String stationCode;
@@ -133,6 +134,8 @@ class _FlightRiskDetailScreenState extends State<FlightRiskDetailScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                   children: [
                     _header(),
+                    const SizedBox(height: 14),
+                    WeatherStrip(stationCode: widget.stationCode),
                     const SizedBox(height: 20),
                     _sectionHeader('TOMORROW', _tomorrow.length, textSecondary),
                     const SizedBox(height: 8),
@@ -367,13 +370,29 @@ class _FlightRiskDetailScreenState extends State<FlightRiskDetailScreen> {
 
   Widget _delayBadge(String label, double pct) {
     final color = pct >= 50 ? _red : _gold;
+    // Stacked vertically, not side-by-side — a Row here can overflow its
+    // fixed third-of-the-card width once the percentage hits 3 digits
+    // worth of visual weight (e.g. "100%" next to "risk >90 min").
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
       decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Text('${pct.toStringAsFixed(0)}%', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color)),
-        const SizedBox(width: 5),
-        Text('risk >$label', style: TextStyle(fontSize: 10, color: color)),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Text(
+          '${pct.toStringAsFixed(0)}%',
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          'risk >$label',
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(fontSize: 9.5, color: color),
+        ),
       ]),
     );
   }

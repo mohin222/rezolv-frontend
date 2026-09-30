@@ -4,6 +4,7 @@ import '../models/real_station.dart';
 import '../widgets/real_station_card.dart';
 import 'real_station_drilldown_screen.dart';
 import '../utils/app_version.dart';
+import 'notifications_screen.dart';
 
 class RealOverviewScreen extends StatefulWidget {
   final ValueChanged<int> onNavigateToTab;
@@ -278,13 +279,10 @@ class _RealOverviewScreenState extends State<RealOverviewScreen> {
                   Text('Inventory Control · ${AppVersion.version}', style: TextStyle(fontSize: 11, color: textSecondary)),
                 ])),
                 Row(children: [
-                  Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                    Row(children: [
-                      Icon(Icons.circle, size: 7, color: widget.isOffline ? Colors.orange : Colors.green),
-                      const SizedBox(width: 5),
-                      Text(widget.isOffline ? 'Offline' : 'RICH · Live', style: TextStyle(fontSize: 11, color: textPrimary)),
-                    ]),
-                    if (!widget.isOffline) Text('Real-time', style: TextStyle(fontSize: 10, color: textSecondary)),
+                  Row(children: [
+                    Icon(Icons.circle, size: 7, color: widget.isOffline ? Colors.orange : Colors.green),
+                    const SizedBox(width: 5),
+                    Text(widget.isOffline ? 'Offline' : 'Live', style: TextStyle(fontSize: 11, color: textPrimary)),
                   ]),
                   IconButton(
                     icon: const Icon(Icons.refresh, color: _navy, size: 20),
@@ -314,15 +312,27 @@ class _RealOverviewScreenState extends State<RealOverviewScreen> {
                     margin: const EdgeInsets.fromLTRB(16, 10, 16, 8),
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
                     decoration: BoxDecoration(color: _navy, borderRadius: BorderRadius.circular(10)),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                      Text(_getGreeting(), style: const TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 3),
-                      Text(
-                        bannerStations.isEmpty
-                            ? 'Connecting to live data...'
-                            : '${bannerStations.length} stations live · ${bannerStations.fold(0, (sum, s) => sum + s.hotelCount)} hotels, '
-                            '${bannerStations.fold(0, (sum, s) => sum + s.roomsToday)} rooms available right now.',
-                        style: const TextStyle(color: Colors.white70, fontSize: 10, height: 1.25),
+                    child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                        Text(_getGreeting(), style: const TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 3),
+                        Text(
+                          bannerStations.isEmpty
+                              ? 'Connecting to live data...'
+                              : '${bannerStations.length} stations live · ${bannerStations.fold(0, (sum, s) => sum + s.hotelCount)} hotels, '
+                              '${bannerStations.fold(0, (sum, s) => sum + s.roomsToday)} rooms available right now.',
+                          style: const TextStyle(color: Colors.white70, fontSize: 10, height: 1.25),
+                        ),
+                      ])),
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                        ),
+                        child: const Padding(
+                          padding: EdgeInsets.only(left: 8),
+                          child: Icon(Icons.notifications_none_rounded, color: Colors.white, size: 20),
+                        ),
                       ),
                     ]),
                   ),
@@ -547,7 +557,7 @@ class _RealOverviewScreenState extends State<RealOverviewScreen> {
                 toDate: _apiDateFmt.format(_toDate),
               ),
             )),
-            child: RealStationCard(station: station),
+            child: RealStationCard(key: ValueKey(station.code), station: station),
           );
         },
       ),

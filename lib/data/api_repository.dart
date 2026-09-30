@@ -393,6 +393,28 @@ class ApiRepository {
     }
   }
 
+  Future<Map<String, dynamic>?> fetchStationWeather(String code) async {
+    final cacheKey = 'station_weather_$code';
+    try {
+      final data = await _withRetry(() async {
+        final uri = Uri.parse('${ApiConfig.baseUrl}/api/weather/station/$code/');
+        final response = await http.get(uri, headers: await _headers())
+            .timeout(const Duration(seconds: 30));
+        _checkUnauthorized(response);
+        if (response.statusCode != 200) throw Exception('Failed to load weather');
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      });
+      await OfflineCache.save(cacheKey, data);
+      return data;
+    } on UnauthorizedException {
+      rethrow;
+    } catch (_) {
+      final cached = await OfflineCache.load(cacheKey);
+      if (cached is Map) return cached.cast<String, dynamic>();
+      return null;
+    }
+  }
+
   /// AI / AIX booking numbers (airline is 'AI' or 'IX'). A failure the
   /// server explains (e.g. Odoo not configured / unreachable) is thrown as
   /// a BookingsException carrying that message; with no connection it falls

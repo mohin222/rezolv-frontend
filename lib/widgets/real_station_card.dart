@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/real_station.dart';
 import '../screens/transportation_station_detail_screen.dart';
 import '../screens/flight_risk_detail_screen.dart';
+import 'weather_inline.dart';
 
 class RealStationCard extends StatefulWidget {
   final RealStation station;
@@ -127,6 +128,7 @@ class _RealStationCardState extends State<RealStationCard> {
                         'Tmr ${widget.station.flightRiskTomorrow ?? 0} · Week ${widget.station.flightRiskNext5Days ?? 0}',
                         style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, color: _gold),
                       ),
+                      WeatherInline(stationCode: widget.station.code, color: _gold),
                       const SizedBox(width: 4),
                       Icon(Icons.chevron_right, size: 14, color: _gold),
                     ]),

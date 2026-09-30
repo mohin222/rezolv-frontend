@@ -42,7 +42,6 @@ class _LeaksScreenState extends State<LeaksScreen> {
   int _visibleCount = _pageSize;
   bool _loading = false;
   String? _error;
-  bool _isOffline = false;
   Timer? _autoRefreshTimer;
   static const _autoRefreshInterval = Duration(seconds: 60);
 
@@ -92,16 +91,13 @@ class _LeaksScreenState extends State<LeaksScreen> {
     if (!mounted) return;
     if (!silent) setState(() { _loading = true; _error = null; _visibleCount = _pageSize; });
     try {
-      final (leaks, fetchWasFromCache) = await _repo.fetchLeaks(
+      final (leaks, _) = await _repo.fetchLeaks(
         date: _apiFmt.format(_selectedDate),
         station: _selectedStation,
         hotelId: _selectedHotelId,
       );
       if (!mounted) return;
-      setState(() {
-        _allLeaks = leaks;
-        _isOffline = fetchWasFromCache;
-      });
+      setState(() => _allLeaks = leaks);
     } catch (e) {
       if (!mounted) return;
       if (silent) return; // keep showing the last good list over a transient background failure
@@ -279,14 +275,6 @@ class _LeaksScreenState extends State<LeaksScreen> {
 
               ]),
             ])),
-            if (_isOffline) Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.circle, size: 6, color: Colors.orange),
-                const SizedBox(width: 4),
-                Text('Offline', style: TextStyle(fontSize: 10.5, color: textSecondary)),
-              ]),
-            ),
             IconButton(icon: const Icon(Icons.refresh, color: _navy, size: 20), onPressed: _resetFilters, padding: EdgeInsets.zero, constraints: const BoxConstraints()),
           ]),
         ),
