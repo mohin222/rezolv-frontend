@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../data/api_repository.dart';
+import '../utils/weather_icon.dart';
 
 /// Live current conditions + short forecast for one station, from the same
 /// Lumo API key already used for Flights at Risk. Silently hides itself if
@@ -47,17 +48,6 @@ class _WeatherStripState extends State<WeatherStrip> {
     });
   }
 
-  IconData _conditionIcon(String condition) {
-    final c = condition.toLowerCase();
-    if (c.contains('thunderstorm')) return Icons.bolt_rounded;
-    if (c.contains('rain') || c.contains('drizzle')) return Icons.water_drop_rounded;
-    if (c.contains('snow')) return Icons.ac_unit_rounded;
-    if (c.contains('fog') || c.contains('mist') || c.contains('haze') || c.contains('smoke')) {
-      return Icons.cloud_rounded;
-    }
-    return Icons.wb_sunny_rounded;
-  }
-
   Color _categoryColor(String? category) {
     switch (category) {
       case 'VFR':
@@ -95,6 +85,7 @@ class _WeatherStripState extends State<WeatherStrip> {
 
     final tempC = current['temp_c'];
     final condition = (current['condition'] as String?) ?? 'Clear';
+    final sky = current['sky'] as String?;
     final wind = current['wind'] as String?;
     final visibility = current['visibility_mi'];
     final category = current['flight_category'] as String?;
@@ -126,7 +117,7 @@ class _WeatherStripState extends State<WeatherStrip> {
               width: 38,
               height: 38,
               decoration: BoxDecoration(color: _navy.withOpacity(0.08), borderRadius: BorderRadius.circular(10)),
-              child: Center(child: Icon(_conditionIcon(condition), size: 19, color: _navy)),
+              child: Center(child: Icon(weatherConditionIcon(condition, sky), size: 19, color: _navy)),
             ),
             const SizedBox(width: 10),
             Expanded(

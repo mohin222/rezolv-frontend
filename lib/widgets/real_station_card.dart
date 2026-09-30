@@ -179,6 +179,7 @@ class _RealStationCardState extends State<RealStationCard> {
                     '${widget.station.vehicleCount}',
                     _navy,
                     textSecondary,
+                    leadingIcon: Icons.directions_car_filled_rounded,
                     trailing: Icon(Icons.chevron_right, size: 13, color: _navy),
                   ),
                 ),
@@ -269,11 +270,17 @@ class _RealStationCardState extends State<RealStationCard> {
     ])));
   }
 
-  Widget _statRow(String label, String value, Color valueColor, Color labelColor, {Widget? trailing}) {
+  Widget _statRow(String label, String value, Color valueColor, Color labelColor, {Widget? trailing, IconData? leadingIcon}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-        Text(label, style: TextStyle(fontSize: 11, color: labelColor)),
+        Row(mainAxisSize: MainAxisSize.min, children: [
+          if (leadingIcon != null) ...[
+            Icon(leadingIcon, size: 12, color: labelColor),
+            const SizedBox(width: 4),
+          ],
+          Text(label, style: TextStyle(fontSize: 11, color: labelColor)),
+        ]),
         Row(mainAxisSize: MainAxisSize.min, children: [
           Text(value, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: valueColor)),
           if (trailing != null) trailing,

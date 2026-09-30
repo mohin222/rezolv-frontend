@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../data/api_repository.dart';
 import '../utils/error_messages.dart';
+import '../utils/weather_icon.dart';
 
 /// Live weather across the whole flight network — every station reachable
 /// from our tracked origins, grouped by continent. Opened from a card on
@@ -58,17 +59,6 @@ class _WorldWeatherScreenState extends State<WorldWeatherScreen> {
     } catch (e) {
       setState(() { _error = friendlyError(e); _loading = false; });
     }
-  }
-
-  IconData _conditionIcon(String condition) {
-    final c = condition.toLowerCase();
-    if (c.contains('thunderstorm')) return Icons.bolt_rounded;
-    if (c.contains('rain') || c.contains('drizzle')) return Icons.water_drop_rounded;
-    if (c.contains('snow')) return Icons.ac_unit_rounded;
-    if (c.contains('fog') || c.contains('mist') || c.contains('haze') || c.contains('smoke')) {
-      return Icons.cloud_rounded;
-    }
-    return Icons.wb_sunny_rounded;
   }
 
   Color _categoryColor(String? category) {
@@ -425,6 +415,7 @@ class _WorldWeatherScreenState extends State<WorldWeatherScreen> {
     final city = weather['city'] as String?;
     final tempC = current['temp_c'];
     final condition = (current['condition'] as String?) ?? 'Clear';
+    final sky = current['sky'] as String?;
     final category = current['flight_category'] as String?;
     final categoryLabel = current['flight_category_label'] as String?;
 
@@ -442,7 +433,7 @@ class _WorldWeatherScreenState extends State<WorldWeatherScreen> {
                   Text(city, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 9.5, color: textSecondary)),
               ]),
             ),
-            Icon(_conditionIcon(condition), size: 16, color: _navy),
+            Icon(weatherConditionIcon(condition, sky), size: 16, color: _navy),
           ]),
           const Spacer(),
           Row(crossAxisAlignment: CrossAxisAlignment.end, children: [

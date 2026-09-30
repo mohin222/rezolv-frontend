@@ -330,11 +330,15 @@ class _HotelDayRow extends StatelessWidget {
   }
 
   Widget _dayCell(String label, int? rooms) {
+    // No data for this hotel/day reads the same as zero rooms — a "?" in
+    // a dark box looked broken, and from a booking standpoint "we don't
+    // have a count" and "there are none available" both mean the same
+    // thing: don't send anyone here for that day.
+    final effectiveRooms = rooms ?? 0;
     final Color bg;
     final Color fg;
-    if (rooms == null)   { bg = const Color(0xFF2A2A2A); fg = Colors.grey; }
-    else if (rooms == 0) { bg = const Color(0xFFFAD9D9); fg = const Color(0xFFC62828); }
-    else                 { bg = const Color(0xFFDFF3E3); fg = const Color(0xFF1B7A3D); }
+    if (effectiveRooms == 0) { bg = const Color(0xFFFAD9D9); fg = const Color(0xFFC62828); }
+    else                     { bg = const Color(0xFFDFF3E3); fg = const Color(0xFF1B7A3D); }
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 7),
@@ -342,7 +346,7 @@ class _HotelDayRow extends StatelessWidget {
       child: Column(children: [
         Text(label, style: const TextStyle(fontSize: 9, color: Colors.grey)),
         const SizedBox(height: 2),
-        Text(rooms?.toString() ?? '?', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: fg)),
+        Text('$effectiveRooms', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: fg)),
       ]),
     );
   }
