@@ -307,6 +307,8 @@ class _WorldWeatherScreenState extends State<WorldWeatherScreen> {
     final airportName = weather['airport_name'] as String?;
     final next10h = (weather['next_10h'] as Map?)?.cast<String, dynamic>();
     final periods = (next10h?['periods'] as List?)?.cast<Map>().map((e) => e.cast<String, dynamic>()).toList() ?? [];
+    final windowStart = next10h?['window_start'] as String?;
+    final windowEnd = next10h?['window_end'] as String?;
 
     showModalBottomSheet(
       context: context,
@@ -349,6 +351,11 @@ class _WorldWeatherScreenState extends State<WorldWeatherScreen> {
               const SizedBox(width: 6),
               Text('NEXT 10 HOURS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: textSecondary, letterSpacing: 0.6)),
             ]),
+            if (windowStart != null && windowEnd != null) ...[
+              const SizedBox(height: 3),
+              Text('$windowStart → $windowEnd (station local time)',
+                  style: TextStyle(fontSize: 11, color: textSecondary)),
+            ],
             const SizedBox(height: 10),
             if (periods.isEmpty)
               Text('No significant weather expected in the next 10 hours.', style: TextStyle(fontSize: 12.5, color: textSecondary, height: 1.4))
@@ -356,9 +363,9 @@ class _WorldWeatherScreenState extends State<WorldWeatherScreen> {
               for (final p in periods) ...[
                 Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   SizedBox(
-                    width: 52,
+                    width: 78,
                     child: Text(p['time'] as String? ?? '—',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _gold)),
+                        style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: _gold)),
                   ),
                   Expanded(
                     child: Text(p['description'] as String? ?? '',
