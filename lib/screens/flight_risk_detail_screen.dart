@@ -23,7 +23,6 @@ class FlightRiskDetailScreen extends StatefulWidget {
 class _FlightRiskDetailScreenState extends State<FlightRiskDetailScreen> {
   static const _navy = Color(0xFF0D2B4E);
   static const _gold = Color(0xFFC1791C);
-  static const _red = Color(0xFFC62828);
 
   static final DateFormat _dateFmt = DateFormat('EEE, d MMM');
   static final DateFormat _timeFmt = DateFormat('h:mm a');
@@ -283,8 +282,6 @@ class _FlightRiskDetailScreenState extends State<FlightRiskDetailScreen> {
     final flightNumber = (flight['flight_number'] as String?)?.trim();
     final airline = flight['airline'] as String?;
     final departure = _parseRawDateTime(flight['departure_time'] as String?);
-    final estimatedDeparture = _parseRawDateTime(flight['estimated_departure_time'] as String?);
-    final estimatedArrival = _parseRawDateTime(flight['estimated_arrival_time'] as String?);
     final delayReason = flight['delay_reason'] as String?;
 
     final rawFields = (flight['raw'] as Map?)?.cast<String, dynamic>() ?? {};
@@ -296,11 +293,6 @@ class _FlightRiskDetailScreenState extends State<FlightRiskDetailScreen> {
       if (destination == null && key.contains('destination')) destination = value;
       if (arrival == null && key.contains('arrival')) arrival = _parseRawDateTime(value);
     }
-
-    final departureDelayed = estimatedDeparture != null && departure != null &&
-        estimatedDeparture.difference(departure).inMinutes.abs() >= 5;
-    final arrivalDelayed = estimatedArrival != null && arrival != null &&
-        estimatedArrival.difference(arrival).inMinutes.abs() >= 5;
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -359,17 +351,8 @@ class _FlightRiskDetailScreenState extends State<FlightRiskDetailScreen> {
             ),
           ])),
         ]),
-        const SizedBox(height: 12),
-
-        // Estimated departure / arrival — the actual predicted times,
-        // colored red when they differ meaningfully from schedule.
-        Row(children: [
-          Expanded(child: _timeBox('EST. DEPARTURE', estimatedDeparture ?? departure, departureDelayed)),
-          const SizedBox(width: 8),
-          Expanded(child: _timeBox('EST. ARRIVAL', estimatedArrival ?? arrival, arrivalDelayed)),
-        ]),
         if (delayReason != null && delayReason.isNotEmpty) ...[
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(10),
@@ -386,29 +369,4 @@ class _FlightRiskDetailScreenState extends State<FlightRiskDetailScreen> {
     );
   }
 
-  Widget _timeBox(String label, DateTime? time, bool delayed) {
-    final color = delayed ? _red : _gold;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Text(
-          time != null ? _timeFmt.format(time) : '—',
-          textAlign: TextAlign.center,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          textAlign: TextAlign.center,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(fontSize: 9.5, color: color),
-        ),
-      ]),
-    );
-  }
 }
