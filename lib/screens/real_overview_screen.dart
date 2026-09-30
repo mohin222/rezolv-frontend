@@ -423,23 +423,21 @@ class _RealOverviewScreenState extends State<RealOverviewScreen> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            begin: Alignment.topLeft, end: Alignment.bottomRight,
-                            colors: [Color(0xFF0D2B4E), Color(0xFF1D4E7A)],
-                          ),
+                          color: cardBg,
                           borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: borderColor),
                         ),
                         child: Row(children: [
                           Container(
                             width: 26, height: 26,
-                            decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(7)),
-                            child: const Center(child: Icon(Icons.public_rounded, color: Colors.white, size: 14)),
+                            decoration: BoxDecoration(color: _navy.withOpacity(0.08), borderRadius: BorderRadius.circular(7)),
+                            child: Center(child: Icon(Icons.public_rounded, color: _navy, size: 14)),
                           ),
                           const SizedBox(width: 10),
-                          const Expanded(
-                            child: Text('Weather', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
+                          Expanded(
+                            child: Text('Weather', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textPrimary)),
                           ),
-                          const Icon(Icons.chevron_right_rounded, color: Colors.white70, size: 18),
+                          Icon(Icons.chevron_right_rounded, color: textSecondary, size: 18),
                         ]),
                       ),
                     ),
