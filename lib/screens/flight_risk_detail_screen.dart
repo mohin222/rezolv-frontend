@@ -23,6 +23,7 @@ class FlightRiskDetailScreen extends StatefulWidget {
 class _FlightRiskDetailScreenState extends State<FlightRiskDetailScreen> {
   static const _navy = Color(0xFF0D2B4E);
   static const _gold = Color(0xFFC1791C);
+  static const _delayBufferMinutes = 20;
 
   static final DateFormat _dateFmt = DateFormat('EEE, d MMM');
   static final DateFormat _timeFmt = DateFormat('h:mm a');
@@ -335,6 +336,11 @@ class _FlightRiskDetailScreenState extends State<FlightRiskDetailScreen> {
               departure != null ? _timeFmt.format(departure) : '—',
               style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w400, color: textPrimary),
             ),
+            if (departure != null) ...[
+              const SizedBox(height: 3),
+              Text('NEW ${_timeFmt.format(departure.add(const Duration(minutes: _delayBufferMinutes)))}',
+                  style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: _gold)),
+            ],
           ])),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -349,6 +355,11 @@ class _FlightRiskDetailScreenState extends State<FlightRiskDetailScreen> {
               style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w400, color: textPrimary),
               textAlign: TextAlign.end,
             ),
+            if (arrival != null) ...[
+              const SizedBox(height: 3),
+              Text('NEW ${_timeFmt.format(arrival.add(const Duration(minutes: _delayBufferMinutes)))}',
+                  style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: _gold), textAlign: TextAlign.end),
+            ],
           ])),
         ]),
         if (delayReason != null && delayReason.isNotEmpty) ...[
