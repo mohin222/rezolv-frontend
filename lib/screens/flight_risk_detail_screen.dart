@@ -23,7 +23,6 @@ class FlightRiskDetailScreen extends StatefulWidget {
 class _FlightRiskDetailScreenState extends State<FlightRiskDetailScreen> {
   static const _navy = Color(0xFF0D2B4E);
   static const _gold = Color(0xFFC1791C);
-  static const _delayBufferMinutes = 20;
 
   static final DateFormat _dateFmt = DateFormat('EEE, d MMM');
   static final DateFormat _timeFmt = DateFormat('h:mm a');
@@ -284,15 +283,16 @@ class _FlightRiskDetailScreenState extends State<FlightRiskDetailScreen> {
     final airline = flight['airline'] as String?;
     final departure = _parseRawDateTime(flight['departure_time'] as String?);
     final delayReason = flight['delay_reason'] as String?;
-
     final rawFields = (flight['raw'] as Map?)?.cast<String, dynamic>() ?? {};
     String? destination;
     DateTime? arrival;
+    num? p90;
     for (final entry in rawFields.entries) {
       final key = entry.key.toLowerCase().trim();
       final value = '${entry.value}';
       if (destination == null && key.contains('destination')) destination = value;
       if (arrival == null && key.contains('arrival')) arrival = _parseRawDateTime(value);
+      if (p90 == null && key == 'p 90') p90 = entry.value as num?;
     }
 
     return Container(
@@ -336,11 +336,6 @@ class _FlightRiskDetailScreenState extends State<FlightRiskDetailScreen> {
               departure != null ? _timeFmt.format(departure) : '—',
               style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w400, color: textPrimary),
             ),
-            if (departure != null) ...[
-              const SizedBox(height: 3),
-              Text('NEW ${_timeFmt.format(departure.add(const Duration(minutes: _delayBufferMinutes)))}',
-                  style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: _gold)),
-            ],
           ])),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -355,13 +350,19 @@ class _FlightRiskDetailScreenState extends State<FlightRiskDetailScreen> {
               style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w400, color: textPrimary),
               textAlign: TextAlign.end,
             ),
-            if (arrival != null) ...[
-              const SizedBox(height: 3),
-              Text('NEW ${_timeFmt.format(arrival.add(const Duration(minutes: _delayBufferMinutes)))}',
-                  style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: _gold), textAlign: TextAlign.end),
-            ],
           ])),
         ]),
+        if (p90 != null) ...[
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(color: _gold.withOpacity(0.12), borderRadius: BorderRadius.circular(7)),
+            child: Text(
+              '~${(p90 + 20).clamp(0, 100).round()}% chance of 90+ min delay (final approx)',
+              style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: _gold),
+            ),
+          ),
+        ],
         if (delayReason != null && delayReason.isNotEmpty) ...[
           const SizedBox(height: 12),
           Container(

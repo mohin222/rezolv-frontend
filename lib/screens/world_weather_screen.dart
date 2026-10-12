@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../data/api_repository.dart';
 import '../utils/error_messages.dart';
 import '../utils/weather_icon.dart';
+import 'airport_flights_screen.dart';
 
 /// Live weather across the whole flight network — every station reachable
 /// from our tracked origins, grouped by continent. Opened from a card on
@@ -166,6 +167,25 @@ class _WorldWeatherScreenState extends State<WorldWeatherScreen> {
                 onPressed: _loading ? null : _load,
               ),
             ]),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+            child: GestureDetector(
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const AirportFlightsScreen()),
+              ),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(color: _navy, borderRadius: BorderRadius.circular(10)),
+                child: Row(children: [
+                  const Icon(Icons.flight_rounded, color: Colors.white, size: 18),
+                  const SizedBox(width: 10),
+                  const Expanded(child: Text('Search any airport — today\'s full flight schedule',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white))),
+                  const Icon(Icons.chevron_right_rounded, color: Colors.white70, size: 20),
+                ]),
+              ),
+            ),
           ),
           if (_loading)
             Expanded(

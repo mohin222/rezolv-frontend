@@ -447,6 +447,25 @@ class ApiRepository {
         MapEntry(key, (value as List).cast<Map>().map((e) => e.cast<String, dynamic>()).toList()));
   }
 
+  /// Every flight touching one airport today — both departures and
+  /// arrivals, not filtered by risk. Used by the "search any airport" screen.
+  Future<Map<String, dynamic>?> fetchAirportFlights(String code) async {
+    try {
+      return await _withRetry(() async {
+        final uri = Uri.parse('${ApiConfig.baseUrl}/api/flights/airport/$code/');
+        final response = await http.get(uri, headers: await _headers())
+            .timeout(const Duration(seconds: 30));
+        _checkUnauthorized(response);
+        if (response.statusCode != 200) throw Exception('Failed to load airport flights');
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      });
+    } on UnauthorizedException {
+      rethrow;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// AI / AIX booking numbers (airline is 'AI' or 'IX'). A failure the
   /// server explains (e.g. Odoo not configured / unreachable) is thrown as
   /// a BookingsException carrying that message; with no connection it falls

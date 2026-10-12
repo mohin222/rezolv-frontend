@@ -248,6 +248,8 @@ class BookingsPanelState extends State<BookingsPanel> {
               info: 'Passengers × nights: every passenger with a hotel room counts once for each night they stay.'),
         ]),
         const SizedBox(height: 22),
+        _occupancyChart(p, cardBg, borderColor, textPrimary, textSecondary),
+        const SizedBox(height: 22),
         _hotelsSection(hotels, cardBg, borderColor, textPrimary, textSecondary),
         const SizedBox(height: 10),
         Text(_footer(), style: TextStyle(fontSize: 10.5, color: textSecondary)),
@@ -441,6 +443,58 @@ class BookingsPanelState extends State<BookingsPanel> {
             Text(l[1], style: const TextStyle(fontSize: 10.5, color: Colors.white60)),
           ]),
         )).toList()),
+      ]),
+    );
+  }
+
+  Widget _occupancyChart(Map<String, dynamic> p, Color cardBg, Color borderColor, Color textPrimary, Color textSecondary) {
+    final occ = (p['occupancy'] as Map?)?.cast<String, dynamic>() ?? {};
+    const bars = [['SINGLE', 'Single'], ['DOUBLE', 'Double'], ['TRIPLE', 'Triple'], ['QUAD', 'Quad']];
+    final values = bars.map((b) => ((occ[b[0]] as num?) ?? 0).toDouble()).toList();
+    final maxValue = values.fold<double>(0, (m, v) => v > m ? v : m);
+    const trackHeight = 110.0;
+    const barWidth = 34.0;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: cardBg, borderRadius: BorderRadius.circular(12), border: Border.all(color: borderColor)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('Occupancy Breakdown · $_scopeLabel', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: textPrimary)),
+        const SizedBox(height: 16),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: List.generate(bars.length, (i) {
+            final value = values[i];
+            final barHeight = maxValue <= 0 ? 0.0 : (value / maxValue) * trackHeight;
+            return Column(mainAxisSize: MainAxisSize.min, children: [
+              Text(_num(value), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: textPrimary)),
+              const SizedBox(height: 6),
+              SizedBox(
+                height: trackHeight,
+                width: barWidth,
+                child: Stack(alignment: Alignment.bottomCenter, children: [
+                  Container(
+                    width: barWidth,
+                    height: trackHeight,
+                    decoration: BoxDecoration(color: borderColor, borderRadius: BorderRadius.circular(4)),
+                  ),
+                  Container(
+                    width: barWidth,
+                    height: barHeight.clamp(0, trackHeight),
+                    decoration: const BoxDecoration(
+                      color: _navy,
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(4)),
+                    ),
+                  ),
+                ]),
+              ),
+              const SizedBox(height: 8),
+              Text(bars[i][1], style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: textSecondary)),
+            ]);
+          }),
+        ),
       ]),
     );
   }
