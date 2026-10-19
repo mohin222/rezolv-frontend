@@ -466,6 +466,46 @@ class ApiRepository {
     }
   }
 
+  /// Airlines sir is tracking for the Airlines-at-Risk screen — managed
+  /// live from /admin/, never hardcoded in the app.
+  Future<List<Map<String, dynamic>>> fetchTrackedAirlines() async {
+    try {
+      return await _withRetry(() async {
+        final uri = Uri.parse('${ApiConfig.baseUrl}/api/airlines/tracked/');
+        final response = await http.get(uri, headers: await _headers())
+            .timeout(const Duration(seconds: 30));
+        _checkUnauthorized(response);
+        if (response.statusCode != 200) throw Exception('Failed to load airlines');
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return (data['airlines'] as List? ?? []).cast<Map<String, dynamic>>();
+      });
+    } on UnauthorizedException {
+      rethrow;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// At-risk flights for one airline, across every tracked station —
+  /// first load can be slow (checks all stations live), later loads are
+  /// fast from the backend's own cache.
+  Future<Map<String, dynamic>?> fetchAirlineFlightRisk(String code) async {
+    try {
+      return await _withRetry(() async {
+        final uri = Uri.parse('${ApiConfig.baseUrl}/api/flights/airline/$code/risk/');
+        final response = await http.get(uri, headers: await _headers())
+            .timeout(const Duration(seconds: 45));
+        _checkUnauthorized(response);
+        if (response.statusCode != 200) throw Exception('Failed to load airline flight risk');
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      });
+    } on UnauthorizedException {
+      rethrow;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// AI / AIX booking numbers (airline is 'AI' or 'IX'). A failure the
   /// server explains (e.g. Odoo not configured / unreachable) is thrown as
   /// a BookingsException carrying that message; with no connection it falls

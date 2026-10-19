@@ -65,8 +65,8 @@ class _FlightRiskDetailScreenState extends State<FlightRiskDetailScreen> {
     try {
       final data = await ApiRepository().fetchFlightRiskStationDetail(widget.stationCode);
       setState(() {
-        _tomorrow = (data['tomorrow'] as List? ?? []).cast<Map<String, dynamic>>();
-        _week = (data['week'] as List? ?? []).cast<Map<String, dynamic>>();
+        _tomorrow = ((data['tomorrow'] as List? ?? []).cast<Map<String, dynamic>>()).where(_meetsRiskThreshold).toList();
+        _week = ((data['week'] as List? ?? []).cast<Map<String, dynamic>>()).where(_meetsRiskThreshold).toList();
         _loading = false;
       });
     } catch (e) {
@@ -278,6 +278,21 @@ class _FlightRiskDetailScreenState extends State<FlightRiskDetailScreen> {
     }
   }
 
+  static num? _p90Of(Map<String, dynamic> flight) {
+    final rawFields = (flight['raw'] as Map?)?.cast<String, dynamic>() ?? {};
+    for (final entry in rawFields.entries) {
+      if (entry.key.toLowerCase().trim() == 'p 90') return entry.value as num?;
+    }
+    return null;
+  }
+
+  // Only flights whose displayed delay-chance badge is 50% or higher.
+  static bool _meetsRiskThreshold(Map<String, dynamic> flight) {
+    final p90 = _p90Of(flight);
+    if (p90 == null) return false;
+    return (p90 + 20).clamp(0, 100) >= 70;
+  }
+
   Widget _flightCard(Map<String, dynamic> flight, Color cardBg, Color borderColor, Color textPrimary, Color textSecondary) {
     final flightNumber = (flight['flight_number'] as String?)?.trim();
     final airline = flight['airline'] as String?;
@@ -358,7 +373,7 @@ class _FlightRiskDetailScreenState extends State<FlightRiskDetailScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(color: _gold.withOpacity(0.12), borderRadius: BorderRadius.circular(7)),
             child: Text(
-              '~${(p90 + 20).clamp(0, 100).round()}% chance of 90+ min delay (final approx)',
+              '~${(p90 + 20).clamp(0, 100).round()}% chance of 90+ min delay',
               style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: _gold),
             ),
           ),

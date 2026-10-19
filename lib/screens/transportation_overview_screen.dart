@@ -278,10 +278,7 @@ class _TransportationOverviewScreenState extends State<TransportationOverviewScr
       });
     } catch (_) {
       if (!mounted) return;
-      setState(() {
-        _stations = [];
-        _loading = false;
-      });
+      setState(() => _loading = false);
     }
   }
 
