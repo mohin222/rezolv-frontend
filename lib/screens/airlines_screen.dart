@@ -18,6 +18,14 @@ class _AirlinesScreenState extends State<AirlinesScreen> {
   bool _loading = true;
   String? _error;
   List<Map<String, dynamic>> _airlines = [];
+  final _filterCtrl = TextEditingController();
+  String _filter = '';
+
+  @override
+  void dispose() {
+    _filterCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -45,6 +53,15 @@ class _AirlinesScreenState extends State<AirlinesScreen> {
     final textSecondary = theme.colorScheme.onSurface.withOpacity(0.55);
     final borderColor = isDark ? Colors.grey.shade800 : const Color(0xFFE9EAED);
 
+    final query = _filter.trim().toLowerCase();
+    final visibleAirlines = query.isEmpty
+        ? _airlines
+        : _airlines.where((a) {
+            final code = ((a['code'] as String?) ?? '').toLowerCase();
+            final name = ((a['name'] as String?) ?? '').toLowerCase();
+            return code.contains(query) || name.contains(query);
+          }).toList();
+
     return Scaffold(
       backgroundColor: bg,
       body: SafeArea(
@@ -63,6 +80,32 @@ class _AirlinesScreenState extends State<AirlinesScreen> {
               ),
             ]),
           ),
+          if (!_loading && _error == null && _airlines.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+              child: TextField(
+                controller: _filterCtrl,
+                onChanged: (v) => setState(() => _filter = v),
+                style: TextStyle(fontSize: 14, color: textPrimary),
+                decoration: InputDecoration(
+                  hintText: 'Filter by airline name or code',
+                  hintStyle: TextStyle(fontSize: 13, color: textSecondary),
+                  prefixIcon: Icon(Icons.search_rounded, size: 19, color: textSecondary),
+                  suffixIcon: _filter.isEmpty
+                      ? null
+                      : IconButton(
+                          icon: Icon(Icons.close_rounded, size: 18, color: textSecondary),
+                          onPressed: () => setState(() { _filterCtrl.clear(); _filter = ''; }),
+                        ),
+                  filled: true,
+                  fillColor: cardBg,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: borderColor)),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: borderColor)),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _navy)),
+                ),
+              ),
+            ),
           if (_loading)
             const Expanded(child: Center(child: CircularProgressIndicator(color: _navy)))
           else if (_error != null)
@@ -82,6 +125,12 @@ class _AirlinesScreenState extends State<AirlinesScreen> {
               child: Text('No airlines being tracked yet — add one from the backend admin.',
                   textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: textSecondary)),
             )))
+          else if (visibleAirlines.isEmpty)
+            Expanded(child: Center(child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text('No airline matches "$_filter".',
+                  textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: textSecondary)),
+            )))
           else
             Expanded(
               child: RefreshIndicator(
@@ -93,7 +142,7 @@ class _AirlinesScreenState extends State<AirlinesScreen> {
                     Text('Tap an airline to see every station it flies from and which of its flights are at risk right now.',
                         style: TextStyle(fontSize: 12.5, color: textSecondary, height: 1.4)),
                     const SizedBox(height: 14),
-                    for (final a in _airlines) ...[
+                    for (final a in visibleAirlines) ...[
                       _airlineTile(a, cardBg, borderColor, textPrimary, textSecondary),
                       const SizedBox(height: 10),
                     ],

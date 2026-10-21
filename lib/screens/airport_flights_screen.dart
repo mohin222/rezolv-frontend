@@ -4,9 +4,10 @@ import '../data/api_repository.dart';
 import '../utils/error_messages.dart';
 
 /// Search any airport code worldwide (not just our tracked stations) and
-/// see every flight touching it today — both departures and arrivals, not
-/// filtered to at-risk only. Lumo's API answers for any airport; this just
-/// calls it directly for whatever code the user types.
+/// see today's moderate-and-higher-risk flights there — both departures
+/// and arrivals, each with its plain-English delay reason. Lumo's API
+/// answers for any airport; this just calls it directly for whatever code
+/// the user types.
 class AirportFlightsScreen extends StatefulWidget {
   const AirportFlightsScreen({super.key});
 
@@ -26,6 +27,7 @@ class _AirportFlightsScreenState extends State<AirportFlightsScreen> {
   bool _loading = false;
   String? _error;
   Map<String, dynamic>? _result;
+  final Set<String> _expandedKeys = {};
 
   @override
   void dispose() {
@@ -159,7 +161,7 @@ class _AirportFlightsScreenState extends State<AirportFlightsScreen> {
                               child: Column(mainAxisSize: MainAxisSize.min, children: [
                                 Icon(Icons.search_rounded, size: 40, color: textSecondary),
                                 const SizedBox(height: 10),
-                                Text('Type any airport code to see every flight\nscheduled there today',
+                                Text('Type any airport code to see today\'s\nmoderate and high risk flights there',
                                     textAlign: TextAlign.center, style: TextStyle(fontSize: 12.5, color: textSecondary)),
                               ]),
                             ),
@@ -184,24 +186,24 @@ class _AirportFlightsScreenState extends State<AirportFlightsScreen> {
                                       style: const TextStyle(fontSize: 12.5, color: Colors.white70)),
                                   const SizedBox(height: 10),
                                   Row(children: [
-                                    _countChip('${departures.length}', 'Departures'),
+                                    _countChip('${departures.length}', 'At-Risk Departures'),
                                     const SizedBox(width: 10),
-                                    _countChip('${arrivals.length}', 'Arrivals'),
+                                    _countChip('${arrivals.length}', 'At-Risk Arrivals'),
                                   ]),
                                 ]),
                               ),
                               const SizedBox(height: 20),
-                              _sectionHeader('DEPARTURES', Icons.flight_takeoff_rounded, textPrimary),
+                              _sectionHeader('AT-RISK DEPARTURES', Icons.flight_takeoff_rounded, textPrimary),
                               const SizedBox(height: 10),
                               if (departures.isEmpty)
-                                _emptyRow('No departures found for today', cardBg, borderColor, textSecondary)
+                                _emptyRow('No moderate or high risk departures today', cardBg, borderColor, textSecondary)
                               else
                                 ...departures.map((f) => _flightRow(f, isDeparture: true, cardBg: cardBg, borderColor: borderColor, textPrimary: textPrimary, textSecondary: textSecondary)),
                               const SizedBox(height: 22),
-                              _sectionHeader('ARRIVALS', Icons.flight_land_rounded, textPrimary),
+                              _sectionHeader('AT-RISK ARRIVALS', Icons.flight_land_rounded, textPrimary),
                               const SizedBox(height: 10),
                               if (arrivals.isEmpty)
-                                _emptyRow('No arrivals found for today', cardBg, borderColor, textSecondary)
+                                _emptyRow('No moderate or high risk arrivals today', cardBg, borderColor, textSecondary)
                               else
                                 ...arrivals.map((f) => _flightRow(f, isDeparture: false, cardBg: cardBg, borderColor: borderColor, textPrimary: textPrimary, textSecondary: textSecondary)),
                             ],
@@ -248,43 +250,78 @@ class _AirportFlightsScreenState extends State<AirportFlightsScreen> {
     final otherCity = isDeparture ? f['destination_city'] as String? : f['origin_city'] as String?;
     final time = _parse(isDeparture ? f['departure_time'] as String? : f['arrival_time'] as String?);
     final risk = f['risk'] as String?;
+    final delayReason = f['delay_reason'] as String?;
+    final hasReason = delayReason != null && delayReason.isNotEmpty;
+    final key = '${isDeparture ? 'D' : 'A'}_${flightNumber}_${time?.toIso8601String()}';
+    final expanded = _expandedKeys.contains(key);
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: cardBg, borderRadius: BorderRadius.circular(10), border: Border.all(color: borderColor)),
-      child: Row(children: [
-        SizedBox(
-          width: 62,
-          child: Text(time != null ? _timeFmt.format(time) : '—',
-              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: textPrimary)),
-        ),
-        Container(width: 1, height: 28, color: borderColor, margin: const EdgeInsets.symmetric(horizontal: 10)),
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              Text(flightNumber ?? '—', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textPrimary)),
-              if (airlineName != null) ...[
-                const SizedBox(width: 6),
-                Expanded(child: Text(airlineName, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: textSecondary))),
-              ],
-            ]),
-            const SizedBox(height: 2),
-            Text(
-              isDeparture ? 'to $otherCode${otherCity != null ? ' · $otherCity' : ''}' : 'from $otherCode${otherCity != null ? ' · $otherCity' : ''}',
-              style: TextStyle(fontSize: 11.5, color: textSecondary),
+    return GestureDetector(
+      onTap: hasReason
+          ? () => setState(() {
+                if (expanded) {
+                  _expandedKeys.remove(key);
+                } else {
+                  _expandedKeys.add(key);
+                }
+              })
+          : null,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(color: cardBg, borderRadius: BorderRadius.circular(10), border: Border.all(color: borderColor)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            SizedBox(
+              width: 62,
+              child: Text(time != null ? _timeFmt.format(time) : '—',
+                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: textPrimary)),
             ),
+            Container(width: 1, height: 28, color: borderColor, margin: const EdgeInsets.symmetric(horizontal: 10)),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Text(flightNumber ?? '—', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textPrimary)),
+                  if (airlineName != null) ...[
+                    const SizedBox(width: 6),
+                    Expanded(child: Text(airlineName, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: textSecondary))),
+                  ],
+                ]),
+                const SizedBox(height: 2),
+                Text(
+                  isDeparture ? 'to $otherCode${otherCity != null ? ' · $otherCity' : ''}' : 'from $otherCode${otherCity != null ? ' · $otherCity' : ''}',
+                  style: TextStyle(fontSize: 11.5, color: textSecondary),
+                ),
+              ]),
+            ),
+            if (risk != null) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(color: _riskColor(risk).withOpacity(0.12), borderRadius: BorderRadius.circular(6)),
+                child: Text(risk, style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: _riskColor(risk))),
+              ),
+            ],
+            if (hasReason) ...[
+              const SizedBox(width: 4),
+              Icon(expanded ? Icons.expand_less_rounded : Icons.expand_more_rounded, size: 18, color: textSecondary),
+            ],
           ]),
-        ),
-        if (risk != null) ...[
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-            decoration: BoxDecoration(color: _riskColor(risk).withOpacity(0.12), borderRadius: BorderRadius.circular(6)),
-            child: Text(risk, style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: _riskColor(risk))),
-          ),
-        ],
-      ]),
+          if (expanded && hasReason) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(9),
+              decoration: BoxDecoration(color: _riskColor(risk).withOpacity(0.08), borderRadius: BorderRadius.circular(8)),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Icon(Icons.info_outline_rounded, size: 14, color: _riskColor(risk)),
+                const SizedBox(width: 7),
+                Expanded(child: Text(delayReason,
+                    style: TextStyle(fontSize: 11.5, color: textPrimary, height: 1.35, fontWeight: FontWeight.w400))),
+              ]),
+            ),
+          ],
+        ]),
+      ),
     );
   }
 }
