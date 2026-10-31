@@ -125,7 +125,7 @@ class _RealStationCardState extends State<RealStationCard> {
                       Icon(Icons.flight_takeoff, size: 10, color: _gold),
                       const SizedBox(width: 4),
                       Text(
-                        'Tmr ${widget.station.flightRiskTomorrow ?? 0} · Week ${widget.station.flightRiskNext5Days ?? 0}',
+                        'Tmr ${widget.station.flightRiskTomorrow ?? 0}',
                         style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, color: _gold),
                       ),
                       WeatherInline(stationCode: widget.station.code, color: _gold),
@@ -135,6 +135,10 @@ class _RealStationCardState extends State<RealStationCard> {
                   ),
                 ),
               ),
+            ] else ...[
+              // No flight-risk data (Lumo off or not fetched today) — the
+              // weather comes from aviationweather.gov, so still show it.
+              WeatherInline(stationCode: widget.station.code, color: _gold, standalone: true),
             ],
           ]),
         ]),

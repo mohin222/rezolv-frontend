@@ -77,6 +77,22 @@ class ApiRepository {
     throw UnauthorizedException();
   }
 
+  /// One page (newest first) of the alerts the backend sent in the last
+  /// few days — the bell screen's history. Returns (items, hasMore).
+  Future<(List<Map<String, dynamic>>, bool)> fetchNotifications({int page = 1}) async {
+    final response = await http.get(
+      Uri.parse('${ApiConfig.baseUrl}/api/notifications/?page=$page'),
+      headers: await _headers(),
+    ).timeout(const Duration(seconds: 10));
+    _checkUnauthorized(response);
+    if (response.statusCode != 200) {
+      throw Exception('Notifications failed (HTTP ${response.statusCode})');
+    }
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    final results = (data['results'] as List).cast<Map<String, dynamic>>();
+    return (results, data['has_more'] == true);
+  }
+
   Future<void> saveFcmToken(String fcmToken) async {
     try {
       final uri = Uri.parse('${ApiConfig.baseUrl}/api/fcm-token/');
@@ -419,6 +435,22 @@ class ApiRepository {
   /// continent. Cold on the server this can take ~20s (150+ stations
   /// fetched in parallel, then cached server-side for 30 min) — hence the
   /// longer timeout than other calls.
+  /// Which Lumo features the app may show — set from the admin "Lumo
+  /// control" page. Fails closed: if the backend can't be reached, the
+  /// Lumo-only buttons stay hidden.
+  Future<Map<String, dynamic>> fetchLumoStatus() async {
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/api/lumo/status/'),
+        headers: await _headers(),
+      ).timeout(const Duration(seconds: 10));
+      if (response.statusCode != 200) return const {};
+      return (jsonDecode(response.body) as Map).cast<String, dynamic>();
+    } catch (_) {
+      return const {};
+    }
+  }
+
   Future<Map<String, List<Map<String, dynamic>>>?> fetchWorldWeather() async {
     const cacheKey = 'world_weather';
     try {

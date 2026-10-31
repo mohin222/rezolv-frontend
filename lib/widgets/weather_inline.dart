@@ -10,7 +10,10 @@ import '../utils/weather_icon.dart';
 class WeatherInline extends StatefulWidget {
   final String stationCode;
   final Color color;
-  const WeatherInline({super.key, required this.stationCode, required this.color});
+  // True when shown on its own (no flight chip to sit in): draws its own
+  // pill, with no leading divider, and nothing at all until weather loads.
+  final bool standalone;
+  const WeatherInline({super.key, required this.stationCode, required this.color, this.standalone = false});
 
   @override
   State<WeatherInline> createState() => _WeatherInlineState();
@@ -50,8 +53,9 @@ class _WeatherInlineState extends State<WeatherInline> {
     final condition = (current['condition'] as String?) ?? 'Clear';
     final sky = current['sky'] as String?;
 
-    return Row(mainAxisSize: MainAxisSize.min, children: [
-      Container(width: 1, height: 10, color: widget.color.withOpacity(0.35), margin: const EdgeInsets.symmetric(horizontal: 6)),
+    final row = Row(mainAxisSize: MainAxisSize.min, children: [
+      if (!widget.standalone)
+        Container(width: 1, height: 10, color: widget.color.withOpacity(0.35), margin: const EdgeInsets.symmetric(horizontal: 6)),
       Icon(weatherConditionIcon(condition, sky), size: 10, color: widget.color),
       const SizedBox(width: 3),
       Text(
@@ -59,5 +63,14 @@ class _WeatherInlineState extends State<WeatherInline> {
         style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, color: widget.color),
       ),
     ]);
+    if (!widget.standalone) return row;
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        decoration: BoxDecoration(color: widget.color.withOpacity(0.15), borderRadius: BorderRadius.circular(16)),
+        child: row,
+      ),
+    );
   }
 }

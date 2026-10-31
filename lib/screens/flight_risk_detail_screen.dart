@@ -25,12 +25,11 @@ class _FlightRiskDetailScreenState extends State<FlightRiskDetailScreen> {
   static const _gold = Color(0xFFC1791C);
 
   static final DateFormat _dateFmt = DateFormat('EEE, d MMM');
-  static final DateFormat _timeFmt = DateFormat('h:mm a');
+  static final DateFormat _timeFmt = DateFormat('HH:mm');
 
   bool _loading = true;
   String? _error;
   List<Map<String, dynamic>> _tomorrow = [];
-  List<Map<String, dynamic>> _week = [];
 
   static const _infoSeenKey = 'flight_risk_info_seen';
 
@@ -66,7 +65,6 @@ class _FlightRiskDetailScreenState extends State<FlightRiskDetailScreen> {
       final data = await ApiRepository().fetchFlightRiskStationDetail(widget.stationCode);
       setState(() {
         _tomorrow = ((data['tomorrow'] as List? ?? []).cast<Map<String, dynamic>>()).where(_meetsRiskThreshold).toList();
-        _week = ((data['week'] as List? ?? []).cast<Map<String, dynamic>>()).where(_meetsRiskThreshold).toList();
         _loading = false;
       });
     } catch (e) {
@@ -139,10 +137,6 @@ class _FlightRiskDetailScreenState extends State<FlightRiskDetailScreen> {
                     _sectionHeader('TOMORROW', _tomorrow.length, textSecondary),
                     const SizedBox(height: 8),
                     _flightList(_tomorrow, cardBg, borderColor, textPrimary, textSecondary),
-                    const SizedBox(height: 24),
-                    _sectionHeader('COMING 5 DAYS', _week.length, textSecondary),
-                    const SizedBox(height: 8),
-                    _flightList(_week, cardBg, borderColor, textPrimary, textSecondary),
                   ],
                 ),
               ),
@@ -169,8 +163,6 @@ class _FlightRiskDetailScreenState extends State<FlightRiskDetailScreen> {
           Text(widget.stationCity, style: const TextStyle(fontSize: 12.5, color: Colors.white70)),
         ])),
         _headerStat('${_tomorrow.length}', 'Tomorrow'),
-        const SizedBox(width: 22),
-        _headerStat('${_week.length}', 'Coming 5 Days'),
       ]),
     );
   }
@@ -214,7 +206,7 @@ class _FlightRiskDetailScreenState extends State<FlightRiskDetailScreen> {
           const SizedBox(height: 14),
           _infoRow(Icons.hotel_outlined, 'Why it matters', 'A high-risk flight can mean crew or passengers need last-minute rooms at this station — plan availability accordingly.', textPrimary, textSecondary),
           const SizedBox(height: 14),
-          _infoRow(Icons.calendar_today_outlined, 'Tomorrow / Coming 5 Days', 'The same time window shown on the Overview screen\'s station cards.', textPrimary, textSecondary),
+          _infoRow(Icons.calendar_today_outlined, 'Tomorrow', 'Flights departing tomorrow — the same window shown on the Overview screen\'s station cards.', textPrimary, textSecondary),
           const SizedBox(height: 20),
           SizedBox(
             width: double.infinity,

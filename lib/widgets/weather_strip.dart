@@ -251,7 +251,7 @@ class _WeatherStripState extends State<WeatherStrip> {
           const SizedBox(height: 14),
           _infoRow(Icons.schedule_rounded, 'Forecast line', 'Warns if worse weather is coming in the next few hours, and roughly when — so you know in advance if delays are likely.', textPrimary, textSecondary),
           const SizedBox(height: 14),
-          _infoRow(Icons.source_outlined, 'Source & updates', 'Live from the same flight-data provider as Flights at Risk. Always today\'s real conditions — refreshes automatically every 30 minutes.', textPrimary, textSecondary),
+          _infoRow(Icons.source_outlined, 'Source & updates', 'From the same flight-data provider as Flights at Risk, fetched once each morning — conditions as of that fetch, not minute-by-minute.', textPrimary, textSecondary),
           const SizedBox(height: 20),
           SizedBox(
             width: double.infinity,

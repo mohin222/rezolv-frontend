@@ -38,6 +38,11 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- Background pushes that don't name a channel still land in our
+             high-importance one (created in PushNotificationService). -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="rezolv_alerts" />
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />

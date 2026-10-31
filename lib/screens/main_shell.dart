@@ -27,6 +27,14 @@ class _MainShellState extends State<MainShell> {
   DateTime _lastFetched = DateTime.now();
   bool _isOffline = false;
   Timer? _autoRefreshTimer;
+  // Last-known card extras, kept across reloads so the chips don't blink
+  // out while a refresh is in flight. Null = not loaded (badge omitted).
+  Map<String, int>? _vehicleByCode;
+  Map<String, dynamic>? _flightRiskByCode;
+  // Mirrors the admin 'Show Lumo data in app' switch (sent with flight risk).
+  bool _lumoEnabled = true;
+  // Bumped per load so a slow, older load can't overwrite a newer one.
+  int _loadSeq = 0;
   static const _autoRefreshInterval = Duration(seconds: 60);
 
   @override
@@ -50,8 +58,52 @@ class _MainShellState extends State<MainShell> {
     super.dispose();
   }
 
+  /// Applies whichever card extras (vehicle count, flight-risk counts) have
+  /// loaded so far onto a station list.
+  List<RealStation> _withExtras(List<RealStation> list) => list.map((s) {
+        var out = s;
+        final vehicles = _vehicleByCode;
+        if (vehicles != null) out = out.withVehicleCount(vehicles[s.code]);
+        final entry = (_flightRiskByCode?[s.code] as Map?)?.cast<String, dynamic>();
+        if (entry != null) {
+          out = out.withFlightRisk(entry['tomorrow'] as int?, entry['next_5_days'] as int?);
+        } else if (!_lumoEnabled) {
+          out = out.withFlightRisk(null, null);
+        }
+        return out;
+      }).toList();
+
+  void _reapplyExtras() {
+    setState(() {
+      _stations = _withExtras(_stations);
+      _todayStations = _withExtras(_todayStations);
+    });
+  }
+
   Future<void> _loadStations({String? fromDate, String? toDate, String? station, bool silent = false}) async {
+    final seq = ++_loadSeq;
     if (!silent) setState(() { _loading = true; _error = null; });
+
+    // Transport and flight-risk counts are nice-to-haves on the cards and
+    // their backends are the slowest to answer (flight risk can take ~10s
+    // when its cache is cold) — fetch them in parallel with the stations
+    // and fill the chips in whenever each arrives, instead of making the
+    // whole Overview wait for them. A failure just leaves its chip off.
+    ApiRepository().fetchTransportationOverview().then((rows) {
+      if (!mounted || seq != _loadSeq) return;
+      _vehicleByCode = {
+        for (final row in rows)
+          (row['code'] as String? ?? ''): (row['total'] as num?)?.toInt() ?? 0,
+      };
+      _reapplyExtras();
+    }).catchError((_) {});
+    ApiRepository().fetchFlightRiskLatest().then((flightRisk) {
+      if (!mounted || seq != _loadSeq) return;
+      _flightRiskByCode = (flightRisk['station_breakdown'] as Map?)?.cast<String, dynamic>() ?? {};
+      _lumoEnabled = flightRisk['lumo_enabled'] != false;
+      _reapplyExtras();
+    }).catchError((_) {});
+
     try {
       final now = DateTime.now();
       final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
@@ -68,43 +120,13 @@ class _MainShellState extends State<MainShell> {
       final (todayStationsRaw, todayFromCache) = results[1];
       final fetchWasFromCache = rangeFromCache || todayFromCache;
 
-      var stations = [...rangeStations]..sort((a, b) => a.code.compareTo(b.code));
-      var todayList = [...todayStationsRaw]..sort((a, b) => a.code.compareTo(b.code));
+      final stations = [...rangeStations]..sort((a, b) => a.code.compareTo(b.code));
+      final todayList = [...todayStationsRaw]..sort((a, b) => a.code.compareTo(b.code));
 
-      // Vehicle counts are a nice-to-have on the cards — never let a
-      // Transportation outage block the Inventory screen from loading.
-      try {
-        final vehicleRows = await ApiRepository().fetchTransportationOverview();
-        final vehicleByCode = <String, int>{
-          for (final row in vehicleRows)
-            (row['code'] as String? ?? ''): (row['total'] as num?)?.toInt() ?? 0,
-        };
-        stations = stations.map((s) => s.withVehicleCount(vehicleByCode[s.code])).toList();
-        todayList = todayList.map((s) => s.withVehicleCount(vehicleByCode[s.code])).toList();
-      } catch (_) {
-        // leave vehicleCount null — card just omits the badge
-      }
-
-      // Flight-risk counts are a nice-to-have on the cards too — never let
-      // a missing/stale Think Lumo upload block the Inventory screen.
-      try {
-        final flightRisk = await ApiRepository().fetchFlightRiskLatest();
-        final breakdown = (flightRisk['station_breakdown'] as Map?)?.cast<String, dynamic>() ?? {};
-        RealStation applyFlightRisk(RealStation s) {
-          final entry = (breakdown[s.code] as Map?)?.cast<String, dynamic>();
-          if (entry == null) return s;
-          return s.withFlightRisk(entry['tomorrow'] as int?, entry['next_5_days'] as int?);
-        }
-        stations = stations.map(applyFlightRisk).toList();
-        todayList = todayList.map(applyFlightRisk).toList();
-      } catch (_) {
-        // leave flight-risk fields null — card just omits the badge
-      }
-
-      if (!mounted) return;
+      if (!mounted || seq != _loadSeq) return;
       setState(() {
-        _stations = stations;
-        _todayStations = todayList;
+        _stations = _withExtras(stations);
+        _todayStations = _withExtras(todayList);
         _lastFetched = DateTime.now();
         _loading = false;
         _isOffline = fetchWasFromCache;

@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "119621775160",
-    "project_id": "rezolv-inventory",
-    "storage_bucket": "rezolv-inventory.firebasestorage.app"
+    "project_number": "689654192973",
+    "project_id": "romina-8e4d6",
+    "storage_bucket": "romina-8e4d6.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:119621775160:android:aef5bc4705bfcf0cad9bcd",
+        "mobilesdk_app_id": "1:689654192973:android:6595400a7682c912e2b504",
         "android_client_info": {
           "package_name": "com.example.rezolv_inventory_app"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCo2m4DqFZGu9rmgS29JRoZGNpEBnnD6ws"
+          "current_key": "AIzaSyAYjjpORQ7rTkhRSs9Q-eHDp0YQZYhOhfc"
         }
       ],
       "services": {

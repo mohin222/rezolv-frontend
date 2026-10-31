@@ -23,6 +23,9 @@ class _WorldWeatherScreenState extends State<WorldWeatherScreen> {
   static const _red = Color(0xFFC62828);
 
   bool _loading = true;
+  // From the admin Lumo control page — weather itself is always shown.
+  bool _searchEnabled = false;
+  bool _airlinesEnabled = false;
   String? _error;
   Map<String, List<Map<String, dynamic>>> _continents = {};
   final _searchCtrl = TextEditingController();
@@ -53,9 +56,17 @@ class _WorldWeatherScreenState extends State<WorldWeatherScreen> {
   Future<void> _load() async {
     setState(() { _loading = true; _error = null; });
     try {
-      final data = await ApiRepository().fetchWorldWeather();
+      final results = await Future.wait([
+        ApiRepository().fetchWorldWeather(),
+        ApiRepository().fetchLumoStatus(),
+      ]);
+      final data = results[0] as Map<String, List<Map<String, dynamic>>>?;
+      final status = results[1] as Map<String, dynamic>;
+      if (!mounted) return;
       setState(() {
         _continents = data ?? {};
+        _searchEnabled = status['search_enabled'] == true;
+        _airlinesEnabled = status['airlines_enabled'] == true;
         _loading = false;
       });
     } catch (e) {
@@ -159,7 +170,7 @@ class _WorldWeatherScreenState extends State<WorldWeatherScreen> {
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text('Weather', style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold, color: textPrimary)),
                   if (!_loading && _error == null)
-                    Text('$totalStations stations · every airport in your flight network',
+                    Text('$totalStations airports with risky weather worldwide',
                         style: TextStyle(fontSize: 11, color: textSecondary)),
                 ]),
               ),
@@ -169,7 +180,7 @@ class _WorldWeatherScreenState extends State<WorldWeatherScreen> {
               ),
             ]),
           ),
-          Padding(
+          if (_searchEnabled) Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
             child: GestureDetector(
               onTap: () => Navigator.of(context).push(
@@ -188,7 +199,7 @@ class _WorldWeatherScreenState extends State<WorldWeatherScreen> {
               ),
             ),
           ),
-          Padding(
+          if (_airlinesEnabled) Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
             child: GestureDetector(
               onTap: () => Navigator.of(context).push(
@@ -213,7 +224,7 @@ class _WorldWeatherScreenState extends State<WorldWeatherScreen> {
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
                   const CircularProgressIndicator(color: _navy),
                   const SizedBox(height: 16),
-                  Text('Loading weather for every station…\nfirst load can take up to 20 seconds',
+                  Text('Loading weather for every station…',
                       textAlign: TextAlign.center, style: TextStyle(fontSize: 12.5, color: textSecondary)),
                 ]),
               ),
@@ -558,7 +569,7 @@ class _WorldWeatherScreenState extends State<WorldWeatherScreen> {
               for (final p in periods) ...[
                 Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   SizedBox(
-                    width: 78,
+                    width: 112,
                     child: Text(p['time'] as String? ?? '—',
                         style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: _gold)),
                   ),

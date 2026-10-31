@@ -42,6 +42,9 @@ class NotificationsStore extends ChangeNotifier {
 
   Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
+    // The background push handler writes from its own isolate — drop this
+    // isolate's cached copy so those entries aren't missed or overwritten.
+    await prefs.reload();
     final raw = prefs.getString(_key);
     if (raw == null) return;
     final list = (jsonDecode(raw) as List).cast<Map<String, dynamic>>();

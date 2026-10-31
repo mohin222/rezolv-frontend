@@ -10,7 +10,13 @@ import '../main.dart' show navigatorKey;
 class InAppNotificationBanner {
   static OverlayEntry? _entry;
 
-  static void show({required String title, required String body, VoidCallback? onTap}) {
+  static void show({
+    required String title,
+    required String body,
+    IconData icon = Icons.notifications_active_rounded,
+    Color color = const Color(0xFF0D2B4E),
+    VoidCallback? onTap,
+  }) {
     final overlayState = navigatorKey.currentState?.overlay;
     if (overlayState == null) return;
 
@@ -26,6 +32,8 @@ class InAppNotificationBanner {
       builder: (context) => _BannerWidget(
         title: title,
         body: body,
+        icon: icon,
+        color: color,
         onTap: () {
           onTap?.call();
           removeSelf();
@@ -42,12 +50,16 @@ class InAppNotificationBanner {
 class _BannerWidget extends StatefulWidget {
   final String title;
   final String body;
+  final IconData icon;
+  final Color color;
   final VoidCallback onTap;
   final VoidCallback onDismiss;
 
   const _BannerWidget({
     required this.title,
     required this.body,
+    required this.icon,
+    required this.color,
     required this.onTap,
     required this.onDismiss,
   });
@@ -58,7 +70,6 @@ class _BannerWidget extends StatefulWidget {
 
 class _BannerWidgetState extends State<_BannerWidget> with SingleTickerProviderStateMixin {
   static const _navy = Color(0xFF0D2B4E);
-  static const _gold = Color(0xFFC1791C);
 
   late final AnimationController _controller = AnimationController(
     vsync: this,
@@ -141,8 +152,8 @@ class _BannerWidgetState extends State<_BannerWidget> with SingleTickerProviderS
                         Container(
                           width: 40,
                           height: 40,
-                          decoration: const BoxDecoration(color: _navy, shape: BoxShape.circle),
-                          child: const Icon(Icons.notifications_active_rounded, color: _gold, size: 20),
+                          decoration: BoxDecoration(color: widget.color, shape: BoxShape.circle),
+                          child: Icon(widget.icon, color: Colors.white, size: 20),
                         ),
                         const SizedBox(width: 12),
                         Expanded(

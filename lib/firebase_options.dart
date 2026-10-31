@@ -8,16 +8,27 @@ class DefaultFirebaseOptions {
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
         return android;
+      case TargetPlatform.iOS:
+        return ios;
       default:
         throw UnsupportedError('This platform is not supported');
     }
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyCo2m4DqFZGu9rmgS29JRoZGNpEBnnD6ws',
-    appId: '1:119621775160:android:aef5bc4705bfcf0cad9bcd',
-    messagingSenderId: '119621775160',
-    projectId: 'rezolv-inventory',
-    storageBucket: 'rezolv-inventory.firebasestorage.app',
+    apiKey: 'AIzaSyAYjjpORQ7rTkhRSs9Q-eHDp0YQZYhOhfc',
+    appId: '1:689654192973:android:6595400a7682c912e2b504',
+    messagingSenderId: '689654192973',
+    projectId: 'romina-8e4d6',
+    storageBucket: 'romina-8e4d6.firebasestorage.app',
+  );
+
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyDdaKB7FH_PxmycleRnExsT__ttdcUzYiY',
+    appId: '1:689654192973:ios:1519577ee9012d6be2b504',
+    messagingSenderId: '689654192973',
+    projectId: 'romina-8e4d6',
+    storageBucket: 'romina-8e4d6.firebasestorage.app',
+    iosBundleId: 'com.rezolvhospitality.inventory',
   );
 }

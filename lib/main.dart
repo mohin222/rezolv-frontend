@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -24,12 +23,14 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   HttpOverrides.global = TrustedHttpOverrides();
   await notificationsStore.load();
-  // TODO: add iOS FirebaseOptions to firebase_options.dart once configured,
-  // then remove this platform guard.
-  if (defaultTargetPlatform == TargetPlatform.android) {
+  // A Firebase problem (e.g. missing config for this platform) must never
+  // stop the app itself from opening — it just means no push alerts.
+  try {
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
     await pushNotificationService.init();
+  } catch (e) {
+    debugPrint('Push notifications unavailable: $e');
   }
   await AppVersion.init();
   runApp(

@@ -21,7 +21,7 @@ class _AirportFlightsScreenState extends State<AirportFlightsScreen> {
   static const _red = Color(0xFFC62828);
   static const _green = Color(0xFF2E7D32);
 
-  static final _timeFmt = DateFormat('h:mm a');
+  static final _timeFmt = DateFormat('HH:mm');
 
   final _codeCtrl = TextEditingController();
   bool _loading = false;

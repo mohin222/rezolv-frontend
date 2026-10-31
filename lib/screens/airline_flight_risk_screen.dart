@@ -23,7 +23,7 @@ class _AirlineFlightRiskScreenState extends State<AirlineFlightRiskScreen> {
   static const _gold = Color(0xFFC1791C);
 
   static final DateFormat _dateFmt = DateFormat('EEE, d MMM');
-  static final DateFormat _timeFmt = DateFormat('h:mm a');
+  static final DateFormat _timeFmt = DateFormat('HH:mm');
 
   bool _loading = true;
   String? _error;
@@ -66,7 +66,9 @@ class _AirlineFlightRiskScreenState extends State<AirlineFlightRiskScreen> {
         _stations = filteredStations;
         _networkStationCount = (data['network_station_count'] as num?)?.toInt() ?? 0;
         _computedAt = computedAtRaw != null ? DateTime.tryParse(computedAtRaw)?.toLocal() : null;
-        _pending = data['pending'] == true;
+        // Lumo couldn't be reached (or today's call budget is used up) —
+        // say so instead of showing an empty 'nothing at risk' list.
+        _pending = data['pending'] == true || data['unavailable'] == true;
         _loading = false;
       });
     } catch (e) {
@@ -140,7 +142,7 @@ class _AirlineFlightRiskScreenState extends State<AirlineFlightRiskScreen> {
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(color: cardBg, borderRadius: BorderRadius.circular(10), border: Border.all(color: borderColor)),
-                        child: Center(child: Text('Still checking ${widget.airlineName}\'s full network for the first time — this runs in the background every ~25 minutes. Check back shortly.',
+                        child: Center(child: Text('Couldn\'t check ${widget.airlineName} right now — please try again in a little while.',
                             textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: textSecondary))),
                       )
                     else if (_stations.isEmpty)
@@ -185,7 +187,7 @@ class _AirlineFlightRiskScreenState extends State<AirlineFlightRiskScreen> {
           const SizedBox(width: 18),
           _headerStat(_pending ? '—' : '${_stations.length}', 'At Risk Now'),
           const SizedBox(width: 18),
-          _headerStat(_pending ? '—' : '$_totalAtRisk', 'Flights (5d)'),
+          _headerStat(_pending ? '—' : '$_totalAtRisk', 'Flights (Tmr)'),
         ]),
         if (_computedAt != null) ...[
           const SizedBox(height: 10),
