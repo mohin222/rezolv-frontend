@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -32,6 +33,8 @@ class _AirlineFlightRiskScreenState extends State<AirlineFlightRiskScreen> {
   int _networkStationCount = 0;
   DateTime? _computedAt;
   bool _pending = false;
+  Timer? _pendingPollTimer;
+  static const _pendingPollInterval = Duration(seconds: 30);
 
   @override
   void initState() {
@@ -39,8 +42,14 @@ class _AirlineFlightRiskScreenState extends State<AirlineFlightRiskScreen> {
     _load();
   }
 
-  Future<void> _load() async {
-    setState(() { _loading = true; _error = null; });
+  @override
+  void dispose() {
+    _pendingPollTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) setState(() { _loading = true; _error = null; });
     try {
       final codes = await ApiRepository().fetchAirportCodes();
       final cities = {
@@ -61,6 +70,7 @@ class _AirlineFlightRiskScreenState extends State<AirlineFlightRiskScreen> {
         final tomorrow = ((st['tomorrow'] as List? ?? []).cast<Map<String, dynamic>>()).where(_meetsRiskThreshold).toList();
         filteredStations.add({...st, 'week': week, 'tomorrow': tomorrow});
       }
+      final stillPending = data['pending'] == true;
       setState(() {
         _stationCities = cities;
         _stations = filteredStations;
@@ -68,11 +78,20 @@ class _AirlineFlightRiskScreenState extends State<AirlineFlightRiskScreen> {
         _computedAt = computedAtRaw != null ? DateTime.tryParse(computedAtRaw)?.toLocal() : null;
         // Lumo couldn't be reached (or today's call budget is used up) —
         // say so instead of showing an empty 'nothing at risk' list.
-        _pending = data['pending'] == true || data['unavailable'] == true;
+        _pending = stillPending || data['unavailable'] == true;
         _loading = false;
       });
+      // The backend's first-time network check can take a while — poll
+      // quietly in the background instead of making someone manually
+      // pull-to-refresh every so often to see if it's finished yet.
+      _pendingPollTimer?.cancel();
+      if (stillPending) {
+        _pendingPollTimer = Timer(_pendingPollInterval, () {
+          if (mounted) _load(silent: true);
+        });
+      }
     } catch (e) {
-      setState(() { _error = friendlyError(e); _loading = false; });
+      if (!silent) setState(() { _error = friendlyError(e); _loading = false; });
     }
   }
 

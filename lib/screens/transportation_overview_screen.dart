@@ -74,6 +74,8 @@ class _TransportationOverviewScreenState extends State<TransportationOverviewScr
   Map<String, String> _stationCities = {};
   List<_StationVehicles> _stations = [];
   bool _loading = true;
+  bool _hasRetriedInitialLoad = false;
+  bool _hasDoneFollowUpRefresh = false;
   DateTime _fromDate = DateTime.now();
   DateTime _toDate = DateTime.now().add(const Duration(days: 1));
 
@@ -243,9 +245,9 @@ class _TransportationOverviewScreenState extends State<TransportationOverviewScr
     );
   }
 
-  Future<void> _load() async {
+  Future<void> _load({bool silent = false}) async {
     if (!mounted) return;
-    setState(() => _loading = true);
+    if (!silent) setState(() => _loading = true);
     try {
       final codes = await ApiRepository().fetchAirportCodes();
       final cities = {
@@ -276,9 +278,31 @@ class _TransportationOverviewScreenState extends State<TransportationOverviewScr
           ..sort((a, b) => a.code.compareTo(b.code));
         _loading = false;
       });
+      // The backend's per-station vehicle counts can still be warming up
+      // right after the app opens — a station simply missing from this
+      // first response reads as a legitimate 0 here (no exception, so the
+      // catch-block retry below never sees it) even though it has real
+      // vehicles. One silent follow-up fetch shortly after the first
+      // successful load quietly corrects any station still showing 0.
+      if (!silent && !_hasDoneFollowUpRefresh) {
+        _hasDoneFollowUpRefresh = true;
+        Future.delayed(const Duration(seconds: 3), () {
+          if (mounted) _load(silent: true);
+        });
+      }
     } catch (_) {
       if (!mounted) return;
       setState(() => _loading = false);
+      // A cold-start network blip on the very first load leaves nothing
+      // on screen to protect (unlike a later failed refresh, which just
+      // keeps showing the last good data) — without data to fall back
+      // to, the screen would otherwise sit stuck at 0 until someone
+      // notices and manually refreshes. Retry once automatically instead.
+      if (_stations.isEmpty && !_hasRetriedInitialLoad) {
+        _hasRetriedInitialLoad = true;
+        await Future.delayed(const Duration(seconds: 2));
+        if (mounted) _load();
+      }
     }
   }
 

@@ -322,19 +322,25 @@ class _WorldWeatherScreenState extends State<WorldWeatherScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: cardBg,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Center(child: Container(width: 36, height: 4, decoration: BoxDecoration(color: textSecondary.withOpacity(0.3), borderRadius: BorderRadius.circular(2)))),
-            const SizedBox(height: 16),
-            Text('Browse by continent', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: textPrimary)),
-            const SizedBox(height: 12),
-            _continentOption(ctx, null, 'All continents', _continents.values.fold<int>(0, (sum, l) => sum + l.length), textPrimary, textSecondary),
-            for (final c in _orderedContinents)
-              _continentOption(ctx, c, c, _continents[c]?.length ?? 0, textPrimary, textSecondary),
-          ]),
+          // Scrollable so the sheet can never overflow its max height —
+          // "All continents" + every continent option can add up to more
+          // than the default (non-scroll-controlled) sheet height allows.
+          child: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Center(child: Container(width: 36, height: 4, decoration: BoxDecoration(color: textSecondary.withOpacity(0.3), borderRadius: BorderRadius.circular(2)))),
+              const SizedBox(height: 16),
+              Text('Browse by continent', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: textPrimary)),
+              const SizedBox(height: 12),
+              _continentOption(ctx, null, 'All continents', _continents.values.fold<int>(0, (sum, l) => sum + l.length), textPrimary, textSecondary),
+              for (final c in _orderedContinents)
+                _continentOption(ctx, c, c, _continents[c]?.length ?? 0, textPrimary, textSecondary),
+            ]),
+          ),
         ),
       ),
     );
