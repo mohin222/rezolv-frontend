@@ -5,6 +5,7 @@ import 'offline_cache.dart';
 import '../models/real_station.dart';
 import '../models/real_hotel_days.dart';
 import '../models/leak_item.dart';
+import '../models/peak_date.dart';
 
 class UnauthorizedException implements Exception {}
 
@@ -435,6 +436,26 @@ class ApiRepository {
   /// continent. Cold on the server this can take ~20s (150+ stations
   /// fetched in parallel, then cached server-side for 30 min) — hence the
   /// longer timeout than other calls.
+  /// Peak & block dates overlapping [from]..[to] (default: today to a year
+  /// ahead), optionally for one station (all-station dates are included).
+  Future<List<PeakDate>> fetchPeakDates({String? from, String? to, String? station}) async {
+    final params = <String, String>{
+      if (from != null) 'from': from,
+      if (to != null) 'to': to,
+      if (station != null) 'station': station,
+    };
+    final response = await http.get(
+      Uri.parse('${ApiConfig.baseUrl}/api/peak-dates/').replace(queryParameters: params.isEmpty ? null : params),
+      headers: await _headers(),
+    ).timeout(const Duration(seconds: 30));
+    _checkUnauthorized(response);
+    if (response.statusCode != 200) {
+      throw Exception('Peak dates failed (HTTP ${response.statusCode})');
+    }
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    return (data['results'] as List).cast<Map<String, dynamic>>().map(PeakDate.fromJson).toList();
+  }
+
   /// Which Lumo features the app may show — set from the admin "Lumo
   /// control" page. Fails closed: if the backend can't be reached, the
   /// Lumo-only buttons stay hidden.

@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../data/api_repository.dart';
 import '../models/real_hotel_days.dart';
+import '../models/peak_date.dart';
+import '../widgets/peak_date_sheet.dart';
 import '../utils/error_messages.dart';
 
 class SoldOutCalendarScreen extends StatefulWidget {
@@ -35,6 +37,7 @@ class _SoldOutCalendarScreenState extends State<SoldOutCalendarScreen> {
   bool _loading = true;
   String? _error;
   List<RealHotelDays> _hotels = [];
+  List<PeakDate> _peaks = [];
 
   late final DateTime _minMonth;
   late final DateTime _maxMonth;
@@ -55,13 +58,21 @@ class _SoldOutCalendarScreenState extends State<SoldOutCalendarScreen> {
     try {
       final firstDay = DateTime(_month.year, _month.month, 1);
       final lastDay  = DateTime(_month.year, _month.month + 1, 0);
+      final from = _apiDateFmt.format(firstDay);
+      final to = _apiDateFmt.format(lastDay);
+      // Peak & block dates are extra colour on the grid — a failure there
+      // must not stop the sold-out calendar from showing.
+      final peaksFuture = ApiRepository()
+          .fetchPeakDates(from: from, to: to, station: widget.stationCode)
+          .catchError((_) => <PeakDate>[]);
       final (_, hotels) = await ApiRepository().fetchStationDays(
         widget.stationCode,
-        fromDate: _apiDateFmt.format(firstDay),
-        toDate: _apiDateFmt.format(lastDay),
+        fromDate: from,
+        toDate: to,
       );
+      final peaks = await peaksFuture;
       if (!mounted) return;
-      setState(() { _hotels = hotels; _loading = false; });
+      setState(() { _hotels = hotels; _peaks = peaks; _loading = false; });
     } catch (e) {
       if (!mounted) return;
       setState(() { _error = friendlyError(e); _loading = false; });
@@ -73,6 +84,16 @@ class _SoldOutCalendarScreenState extends State<SoldOutCalendarScreen> {
     if (next.isBefore(_minMonth) || next.isAfter(_maxMonth)) return;
     setState(() => _month = next);
     _loadMonth();
+  }
+
+  /// Peak / block dates covering this day — blocks first, then by impact.
+  List<PeakDate> _peaksOn(DateTime day) {
+    const rank = {'high': 0, 'medium': 1, 'low': 2};
+    return _peaks.where((p) => p.covers(day)).toList()
+      ..sort((a, b) {
+        if (a.isBlock != b.isBlock) return a.isBlock ? -1 : 1;
+        return (rank[a.impact] ?? 1).compareTo(rank[b.impact] ?? 1);
+      });
   }
 
   bool _hasDataOn(String dateStr) => _hotels.any((h) => h.roomsFor(dateStr) != null);
@@ -98,6 +119,8 @@ class _SoldOutCalendarScreenState extends State<SoldOutCalendarScreen> {
   void _showDayDetail(DateTime day) {
     final dateStr = _apiDateFmt.format(day);
     final soldOut = _soldOutOn(dateStr);
+    final hasData = _hasDataOn(dateStr);
+    final peaks = _peaksOn(day);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -116,7 +139,7 @@ class _SoldOutCalendarScreenState extends State<SoldOutCalendarScreen> {
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
               Center(child: Container(
                 width: 40, height: 4,
                 margin: const EdgeInsets.only(bottom: 16),
@@ -140,11 +163,18 @@ class _SoldOutCalendarScreenState extends State<SoldOutCalendarScreen> {
                   Text(_dayHeaderFmt.format(day), style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: textPrimary)),
                   const SizedBox(height: 2),
                   Text(
-                    soldOut.isEmpty ? 'All hotels available' : '${soldOut.length} of ${_hotels.length} hotels sold out',
+                    !hasData
+                        ? 'No inventory data yet'
+                        : soldOut.isEmpty ? 'All hotels available' : '${soldOut.length} of ${_hotels.length} hotels sold out',
                     style: TextStyle(fontSize: 12, color: soldOut.isEmpty ? _green : _darkRed, fontWeight: FontWeight.w600),
                   ),
                 ])),
               ]),
+              if (peaks.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                for (final p in peaks)
+                  PeakDetailCard(peak: p, textPrimary: textPrimary, textSecondary: textSecondary),
+              ],
               if (soldOut.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 ConstrainedBox(
@@ -180,7 +210,7 @@ class _SoldOutCalendarScreenState extends State<SoldOutCalendarScreen> {
                   ),
                 ),
               ],
-            ]),
+            ])),
           ),
         );
       },
@@ -345,6 +375,10 @@ class _SoldOutCalendarScreenState extends State<SoldOutCalendarScreen> {
             _legendChip(_darkRed, 'Hotel(s) sold out'),
             _legendChip(_green, 'Fully available'),
             _legendChip(borderColor, 'No data yet', outline: true),
+            if (_peaks.any((p) => !p.isBlock && p.impact == 'high')) _legendBar(const Color(0xFFC62828), 'Peak · high'),
+            if (_peaks.any((p) => !p.isBlock && p.impact == 'medium')) _legendBar(const Color(0xFFEF6C00), 'Peak · medium'),
+            if (_peaks.any((p) => !p.isBlock && p.impact == 'low')) _legendBar(const Color(0xFFB08A2E), 'Peak · low'),
+            if (_peaks.any((p) => p.isBlock)) _legendBar(const Color(0xFF6B7280), 'Block dates'),
           ]),
         ),
 
@@ -354,7 +388,9 @@ class _SoldOutCalendarScreenState extends State<SoldOutCalendarScreen> {
           Icon(Icons.info_outline, size: 14, color: textSecondary),
           const SizedBox(width: 6),
           Expanded(child: Text(
-            'Tap any date to see which hotels are sold out that day.',
+            _peaks.isEmpty
+                ? 'Tap any date to see which hotels are sold out that day.'
+                : 'Tap any date to see sold-out hotels and peak / block events.',
             style: TextStyle(fontSize: 11, color: textSecondary),
           )),
         ]),
@@ -377,6 +413,7 @@ class _SoldOutCalendarScreenState extends State<SoldOutCalendarScreen> {
       final hasData = _hasDataOn(dateStr);
       final soldOutCount = hasData ? _soldOutOn(dateStr).length : 0;
       final isToday = date.year == _today.year && date.month == _today.month && date.day == _today.day;
+      final dayPeaks = _peaksOn(date);
 
       final Color cellBg;
       final Color cellFg;
@@ -396,9 +433,10 @@ class _SoldOutCalendarScreenState extends State<SoldOutCalendarScreen> {
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: hasData ? () => _showDayDetail(date) : null,
+            onTap: hasData || dayPeaks.isNotEmpty ? () => _showDayDetail(date) : null,
             borderRadius: BorderRadius.circular(10),
             child: Container(
+              clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
                 color: cellBg,
                 borderRadius: BorderRadius.circular(10),
@@ -407,7 +445,11 @@ class _SoldOutCalendarScreenState extends State<SoldOutCalendarScreen> {
                   width: isToday ? 1.6 : 1,
                 ),
               ),
-              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              child: Stack(children: [
+                // Peak / block day: coloured bar along the bottom of the cell.
+                if (dayPeaks.isNotEmpty)
+                  Positioned(left: 0, right: 0, bottom: 0, child: Container(height: 4, color: dayPeaks.first.color)),
+                Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
                 Text('$day', style: TextStyle(
                   fontSize: 13,
                   fontWeight: isToday ? FontWeight.w800 : FontWeight.w600,
@@ -424,6 +466,7 @@ class _SoldOutCalendarScreenState extends State<SoldOutCalendarScreen> {
                   Container(width: 5, height: 5, decoration: BoxDecoration(color: _green.withOpacity(0.55), shape: BoxShape.circle))
                 else
                   const SizedBox(height: 5),
+                ])),
               ]),
             ),
           ),
@@ -438,6 +481,15 @@ class _SoldOutCalendarScreenState extends State<SoldOutCalendarScreen> {
       childAspectRatio: 0.95,
       children: cells,
     );
+  }
+
+  Widget _legendBar(Color color, String label) {
+    final textSecondary = Theme.of(context).colorScheme.onSurface.withOpacity(0.6);
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      Container(width: 14, height: 4, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
+      const SizedBox(width: 6),
+      Text(label, style: TextStyle(fontSize: 11, color: textSecondary, fontWeight: FontWeight.w500)),
+    ]);
   }
 
   Widget _legendChip(Color color, String label, {bool outline = false}) {

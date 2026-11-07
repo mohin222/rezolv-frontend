@@ -3,6 +3,9 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/real_station.dart';
 import '../screens/transportation_station_detail_screen.dart';
 import '../screens/flight_risk_detail_screen.dart';
+import 'package:provider/provider.dart';
+import '../services/peak_dates_store.dart';
+import 'peak_date_sheet.dart';
 import 'weather_inline.dart';
 
 class RealStationCard extends StatefulWidget {
@@ -51,6 +54,37 @@ class _RealStationCardState extends State<RealStationCard> {
     return 3;
   }
 
+  /// Nearest peak / block date for this station within the next
+  /// PeakDatesStore.cardWindowDays (entered in admin). Nothing if none.
+  Widget _peakChip(BuildContext context) {
+    final peaks = context.watch<PeakDatesStore>().upcomingFor(widget.station.code);
+    if (peaks.isEmpty) return const SizedBox.shrink();
+    final p = peaks.first;
+    final label = '${p.isBlock ? 'Block' : 'Peak'} ${p.ongoing ? 'now' : peakRange(p)}';
+    return GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => showPeakDatesSheet(context, peaks, title: '${widget.station.code} · Peak & block dates'),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(color: p.color.withOpacity(0.12), borderRadius: BorderRadius.circular(16)),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(p.isBlock ? Icons.block_rounded : Icons.local_fire_department_rounded, size: 11, color: p.color),
+              const SizedBox(width: 3),
+              Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: p.color))),
+              if (peaks.length > 1) ...[
+                const SizedBox(width: 3),
+                Text('+${peaks.length - 1}', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: p.color.withOpacity(0.8))),
+              ],
+              Icon(Icons.chevron_right, size: 13, color: p.color),
+            ]),
+          ),
+        ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme       = Theme.of(context);
@@ -86,7 +120,11 @@ class _RealStationCardState extends State<RealStationCard> {
         // Station code + SO badge
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(widget.station.code, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textPrimary)),
+            Row(children: [
+              Text(widget.station.code, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textPrimary)),
+              const SizedBox(width: 6),
+              Flexible(child: _peakChip(context)),
+            ]),
             Text(widget.station.cityLabel, style: TextStyle(fontSize: 10.5, color: textSecondary)),
           ])),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [

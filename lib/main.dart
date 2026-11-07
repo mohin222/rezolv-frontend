@@ -6,6 +6,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'firebase_options.dart';
 import 'providers/theme_provider.dart';
 import 'services/notifications_store.dart';
+import 'services/peak_dates_store.dart';
 import 'services/push_notification_service.dart';
 import 'screens/splash_screen.dart';
 import 'utils/app_version.dart';
@@ -18,6 +19,7 @@ final navigatorKey = GlobalKey<NavigatorState>();
 
 final notificationsStore = NotificationsStore();
 final pushNotificationService = PushNotificationService(notificationsStore);
+final peakDatesStore = PeakDatesStore();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,6 +40,7 @@ void main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider.value(value: notificationsStore),
+        ChangeNotifierProvider.value(value: peakDatesStore),
       ],
       child: const RezolvApp(),
     ),

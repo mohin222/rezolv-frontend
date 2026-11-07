@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../data/api_repository.dart';
+import '../main.dart' show peakDatesStore;
 import '../data/api_config.dart';
 import '../utils/error_messages.dart';
 import '../models/real_station.dart';
@@ -97,6 +98,8 @@ class _MainShellState extends State<MainShell> {
       };
       _reapplyExtras();
     }).catchError((_) {});
+    // Peak & block dates for the station cards — shared via Provider.
+    peakDatesStore.load();
     ApiRepository().fetchFlightRiskLatest().then((flightRisk) {
       if (!mounted || seq != _loadSeq) return;
       _flightRiskByCode = (flightRisk['station_breakdown'] as Map?)?.cast<String, dynamic>() ?? {};

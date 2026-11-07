@@ -6,6 +6,7 @@ import '../models/real_station.dart';
 import '../providers/theme_provider.dart';
 import '../data/api_config.dart';
 import 'login_screen.dart';
+import 'peak_dates_screen.dart';
 import '../utils/app_version.dart';
 
 class RealMoreScreen extends StatefulWidget {
@@ -215,6 +216,11 @@ class _RealMoreScreenState extends State<RealMoreScreen> {
         const SizedBox(height: 20),
         _sectionLabel('ACTIONS', labelColor),
         _card(cardBg, dividerColor, isDark: isDark, [
+          _actionRow(
+            icon: Icons.local_fire_department_rounded, iconColor: const Color(0xFFC62828), label: 'Peak & Block Dates',
+            textColor: textPrimary, trailingColor: textSecondary,
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PeakDatesScreen())),
+          ),
           _actionRow(
             icon: Icons.refresh_rounded, iconColor: _navy, label: 'Reload app',
             textColor: textPrimary, trailingColor: textSecondary,
