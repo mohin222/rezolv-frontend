@@ -30,11 +30,14 @@ class _SplashScreenState extends State<SplashScreen>
 
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1800),
+      duration: const Duration(milliseconds: 1100),
     );
 
     _logoScale = Tween<double>(begin: 0.6, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: const Interval(0.0, 0.45, curve: Curves.easeOutBack)),
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.0, 0.45, curve: Curves.easeOutBack),
+      ),
     );
     _logoFade = CurvedAnimation(
       parent: _controller,
@@ -44,9 +47,13 @@ class _SplashScreenState extends State<SplashScreen>
       parent: _controller,
       curve: const Interval(0.35, 0.6, curve: Curves.easeOut),
     );
-    _titleSlide = Tween<Offset>(begin: const Offset(0, 0.15), end: Offset.zero).animate(
-      CurvedAnimation(parent: _controller, curve: const Interval(0.35, 0.6, curve: Curves.easeOut)),
-    );
+    _titleSlide = Tween<Offset>(begin: const Offset(0, 0.15), end: Offset.zero)
+        .animate(
+          CurvedAnimation(
+            parent: _controller,
+            curve: const Interval(0.35, 0.6, curve: Curves.easeOut),
+          ),
+        );
     _taglineFade = CurvedAnimation(
       parent: _controller,
       curve: const Interval(0.55, 0.75, curve: Curves.easeOut),
@@ -58,50 +65,58 @@ class _SplashScreenState extends State<SplashScreen>
 
     _controller.forward();
 
-    Timer(const Duration(milliseconds: 2600), () async {
-      if (!mounted) return;
-      final token = await ApiConfig.getToken();
-      if (!mounted) return;
+    _openApp();
+  }
 
-      Widget nextScreen = const LoginScreen();
+  /// Checks the login while the logo animates, instead of after a fixed
+  /// 2.6s wait — the splash now stays only as long as it has to (at least
+  /// _minSplash, so the logo isn't a flash).
+  static const _minSplash = Duration(milliseconds: 1200);
 
-      if (token != null) {
-        try {
-          final userInfo = await ApiRepository().verifyToken();
-          await ApiConfig.saveUserInfo(
-            username: userInfo['username'] ?? '',
-            email:    userInfo['email']    ?? '',
-            phone:    userInfo['phone']    ?? '',
-          );
+  Future<void> _openApp() async {
+    final shownLongEnough = Future.delayed(_minSplash);
+    final token = await ApiConfig.getToken();
+    if (!mounted) return;
 
-          // Re-register in case the FCM token rotated since last login.
-          await pushNotificationService.registerToken();
+    Widget nextScreen = const LoginScreen();
 
-          nextScreen = const MainShell();
-        } on UnauthorizedException {
-          // Token really is invalid/expired per the server — log out.
-          await ApiConfig.clearToken();
-          nextScreen = const LoginScreen();
-        } catch (_) {
-          // Couldn't reach the server at all (no internet, timeout, etc).
-          // We don't know the token is invalid, so don't log the user out —
-          // let them into the app; every screen already falls back to its
-          // offline cache when a live fetch fails.
-          nextScreen = const MainShell();
-        }
+    if (token != null) {
+      try {
+        final userInfo = await ApiRepository().verifyToken();
+        await ApiConfig.saveUserInfo(
+          username: userInfo['username'] ?? '',
+          email: userInfo['email'] ?? '',
+          phone: userInfo['phone'] ?? '',
+        );
+
+        // Re-register in case the FCM token rotated since last login —
+        // in the background: getting the token from Firebase can take
+        // seconds and the app shouldn't wait on it.
+        unawaited(pushNotificationService.registerToken());
+
+        nextScreen = const MainShell();
+      } on UnauthorizedException {
+        // Token really is invalid/expired per the server — log out.
+        await ApiConfig.clearToken();
+        nextScreen = const LoginScreen();
+      } catch (_) {
+        // Couldn't reach the server at all (no internet, timeout, etc).
+        // We don't know the token is invalid, so don't log the user out —
+        // let them into the app; every screen already falls back to its
+        // offline cache when a live fetch fails.
+        nextScreen = const MainShell();
       }
+    }
 
-      if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          transitionDuration: const Duration(milliseconds: 500),
-          pageBuilder: (_, animation, __) => FadeTransition(
-            opacity: animation,
-            child: nextScreen,
-          ),
-        ),
-      );
-    });
+    await shownLongEnough;
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 300),
+        pageBuilder: (_, animation, __) =>
+            FadeTransition(opacity: animation, child: nextScreen),
+      ),
+    );
   }
 
   @override
@@ -214,7 +229,8 @@ class _PulsingDots extends StatefulWidget {
   State<_PulsingDots> createState() => _PulsingDotsState();
 }
 
-class _PulsingDotsState extends State<_PulsingDots> with SingleTickerProviderStateMixin {
+class _PulsingDotsState extends State<_PulsingDots>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
 
   @override
@@ -241,7 +257,10 @@ class _PulsingDotsState extends State<_PulsingDots> with SingleTickerProviderSta
           mainAxisSize: MainAxisSize.min,
           children: List.generate(3, (i) {
             final t = (_controller.value - (i * 0.2)) % 1.0;
-            final opacity = (0.3 + 0.7 * (1 - (t - 0.5).abs() * 2)).clamp(0.3, 1.0);
+            final opacity = (0.3 + 0.7 * (1 - (t - 0.5).abs() * 2)).clamp(
+              0.3,
+              1.0,
+            );
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: Opacity(

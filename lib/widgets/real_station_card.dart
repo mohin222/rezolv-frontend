@@ -6,6 +6,7 @@ import '../screens/flight_risk_detail_screen.dart';
 import 'package:provider/provider.dart';
 import '../services/peak_dates_store.dart';
 import 'peak_date_sheet.dart';
+import '../screens/station_peak_screen.dart';
 import 'weather_inline.dart';
 
 class RealStationCard extends StatefulWidget {
@@ -57,28 +58,46 @@ class _RealStationCardState extends State<RealStationCard> {
   /// Nearest peak / block date for this station within the next
   /// PeakDatesStore.cardWindowDays (entered in admin). Nothing if none.
   Widget _peakChip(BuildContext context) {
-    final peaks = context.watch<PeakDatesStore>().upcomingFor(widget.station.code);
-    if (peaks.isEmpty) return const SizedBox.shrink();
-    final p = peaks.first;
-    final label = '${p.isBlock ? 'Block' : 'Peak'} ${p.ongoing ? 'now' : peakRange(p)}';
+    final store = context.watch<PeakDatesStore>();
+    final peaks = store.upcomingFor(widget.station.code);
+    final blocks = store.blocksFor(widget.station.code);
+    if (peaks.isEmpty && blocks.isEmpty) return const SizedBox.shrink();
+    final hasPeak = peaks.isNotEmpty;
+    final p = hasPeak ? peaks.first : null;
+    final color = p?.color ?? blocks.first.color;
+    final String label;
+    if (p != null) {
+      label = '${p.isBlock ? 'Block' : 'Peak'} ${p.ongoing ? 'now' : peakRange(p)}';
+    } else {
+      final first = blocks.map((b) => b.start).reduce((a, b) => a.isBefore(b) ? a : b);
+      final last = blocks.map((b) => b.end).reduce((a, b) => a.isAfter(b) ? a : b);
+      label = 'Rooms held ${dateRange(first, last)}';
+    }
     return GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: () => showPeakDatesSheet(context, peaks, title: '${widget.station.code} · Peak & block dates'),
+        onTap: () => Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => StationPeakScreen(
+            stationCode: widget.station.code,
+            stationCity: widget.station.cityLabel,
+            peaks: store.allPeaksFor(widget.station.code),
+            blocks: store.allBlocksFor(widget.station.code),
+          ),
+        )),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(color: p.color.withOpacity(0.12), borderRadius: BorderRadius.circular(16)),
+            decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(16)),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(p.isBlock ? Icons.block_rounded : Icons.local_fire_department_rounded, size: 11, color: p.color),
+              Icon(p == null ? Icons.hotel_rounded : p.isBlock ? Icons.block_rounded : Icons.local_fire_department_rounded, size: 11, color: color),
               const SizedBox(width: 3),
               Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: p.color))),
-              if (peaks.length > 1) ...[
+                  style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: color))),
+              if (hasPeak && peaks.length > 1) ...[
                 const SizedBox(width: 3),
-                Text('+${peaks.length - 1}', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: p.color.withOpacity(0.8))),
+                Text('+${peaks.length - 1}', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: color.withOpacity(0.8))),
               ],
-              Icon(Icons.chevron_right, size: 13, color: p.color),
+              Icon(Icons.chevron_right, size: 13, color: color),
             ]),
           ),
         ),

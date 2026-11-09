@@ -314,7 +314,7 @@ class _TransportationOverviewScreenState extends State<TransportationOverviewScr
     final textPrimary = theme.colorScheme.onSurface;
     final textSecondary = theme.colorScheme.onSurface.withOpacity(0.55);
 
-    final totalAvailable = _stations.fold<int>(0, (s, e) => s + e.available);
+    final totalVehicles = _stations.fold<int>(0, (s, e) => s + e.total);
     final totalDepots = _stations.fold<int>(0, (s, e) => s + e.depots);
 
     return GestureDetector(
@@ -375,7 +375,7 @@ class _TransportationOverviewScreenState extends State<TransportationOverviewScr
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(_getGreeting(), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                   const SizedBox(height: 4),
-                  Text('$totalDepots vendors live · $totalAvailable vehicles available right now.', style: const TextStyle(fontSize: 12, color: Colors.white70)),
+                  Text('$totalDepots vendors live · $totalVehicles vehicles in the fleet.', style: const TextStyle(fontSize: 12, color: Colors.white70)),
                 ])),
                 Container(
                   width: 42, height: 42,
@@ -427,7 +427,7 @@ class _TransportationOverviewScreenState extends State<TransportationOverviewScr
             child: Row(children: [
               Text(
                 _selectedStationCode.isEmpty
-                    ? 'STATION AVAILABILITY · LIVE (RIDE OPS)'
+                    ? 'STATION FLEET · LIVE (RIDE OPS)'
                     : '${_displayedStations.length} RESULT${_displayedStations.length == 1 ? '' : 'S'} FOR "$_selectedStationCode"',
                 style: TextStyle(fontSize: 10.5, color: textSecondary, letterSpacing: 0.8),
               ),
@@ -505,15 +505,9 @@ class _VehicleStationCard extends StatelessWidget {
     final textSecondary = theme.colorScheme.onSurface.withOpacity(0.55);
     final dividerColor = isDark ? Colors.grey.shade800 : Colors.grey.shade200;
 
-    final fillPct = station.total == 0 ? 0.0 : station.available / station.total * 100;
-
-    final statusColor = station.total == 0
-        ? Colors.grey
-        : fillPct >= 60
-            ? const Color(0xFF2E7D32)
-            : fillPct >= 30
-                ? const Color(0xFFE9A227)
-                : const Color(0xFFD64545);
+    // Overall fleet only (not "available right now") — green when the
+    // station has vehicles, grey when it has none.
+    final statusColor = station.total == 0 ? Colors.grey : const Color(0xFF2E7D32);
 
     const typeChipColors = [
       (bg: Color(0xFFE3F2FD), fg: Color(0xFF1565C0)),
@@ -550,21 +544,20 @@ class _VehicleStationCard extends StatelessWidget {
                   width: 56, height: 56,
                   child: Stack(alignment: Alignment.center, children: [
                     SizedBox(width: 56, height: 56, child: CircularProgressIndicator(
-                      value: (fillPct / 100).clamp(0.0, 1.0),
+                      value: station.total == 0 ? 0.0 : 1.0,
                       strokeWidth: 4.5,
                       backgroundColor: isDark ? Colors.grey.shade700 : Colors.grey.shade200,
                       valueColor: AlwaysStoppedAnimation<Color>(statusColor),
                     )),
                     Column(mainAxisSize: MainAxisSize.min, children: [
-                      Text('${station.available}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: statusColor)),
-                      Text('AVAIL', style: TextStyle(fontSize: 6.5, color: textSecondary)),
+                      Text('${station.total}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: statusColor)),
+                      Text('TOTAL', style: TextStyle(fontSize: 6.5, color: textSecondary)),
                     ]),
                   ]),
                 ),
                 const SizedBox(width: 12),
                 Expanded(child: Column(children: [
-                  _statRow('Total fleet', '${station.total}', textPrimary, textSecondary),
-                  _statRow('Utilization', '${fillPct.toStringAsFixed(0)}%', statusColor, textSecondary),
+                  _statRow('Total vehicles', '${station.total}', textPrimary, textSecondary),
                   _statRow('Vendors', '${station.depots}', textPrimary, textSecondary),
                 ])),
               ]),

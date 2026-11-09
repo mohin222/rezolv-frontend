@@ -297,7 +297,9 @@ class _TransportationStationDetailScreenState extends State<TransportationStatio
                             child: Row(mainAxisSize: MainAxisSize.min, children: [
                               Icon(Icons.filter_alt_off_rounded, size: 13, color: textSecondary),
                               const SizedBox(width: 4),
-                              Text('Showing $_selectedVendorKey only — tap to clear', style: TextStyle(fontSize: 11, color: textSecondary)),
+                              // Flexible so a long vendor name (e.g. "CTTPL · Chaudhary
+                              // Tours and Travels") wraps instead of overflowing.
+                              Flexible(child: Text('Showing $_selectedVendorKey only — tap to clear', style: TextStyle(fontSize: 11, color: textSecondary))),
                             ]),
                           ),
                         ),

@@ -36,6 +36,9 @@ class _MainShellState extends State<MainShell> {
   bool _lumoEnabled = true;
   // Bumped per load so a slow, older load can't overwrite a newer one.
   int _loadSeq = 0;
+  // One quiet re-fetch of the vehicle counts shortly after the first load —
+  // the very first answer after opening can still have stations at 0.
+  bool _vehicleFollowUpDone = false;
   static const _autoRefreshInterval = Duration(seconds: 60);
 
   @override
@@ -90,14 +93,7 @@ class _MainShellState extends State<MainShell> {
     // when its cache is cold) — fetch them in parallel with the stations
     // and fill the chips in whenever each arrives, instead of making the
     // whole Overview wait for them. A failure just leaves its chip off.
-    ApiRepository().fetchTransportationOverview().then((rows) {
-      if (!mounted || seq != _loadSeq) return;
-      _vehicleByCode = {
-        for (final row in rows)
-          (row['code'] as String? ?? ''): (row['total'] as num?)?.toInt() ?? 0,
-      };
-      _reapplyExtras();
-    }).catchError((_) {});
+    _loadVehicleCounts();
     // Peak & block dates for the station cards — shared via Provider.
     peakDatesStore.load();
     ApiRepository().fetchFlightRiskLatest().then((flightRisk) {
@@ -147,6 +143,33 @@ class _MainShellState extends State<MainShell> {
       if (silent) return; // don't blank out a working screen over a transient background failure
       setState(() { _error = friendlyError(e); _loading = false; });
     }
+  }
+
+  /// Vehicle counts for the cards. Applied whenever they arrive, even if a
+  /// newer station load started meanwhile (the counts don't depend on the
+  /// date range), so a slow first answer is never thrown away.
+  void _loadVehicleCounts() {
+    ApiRepository().fetchTransportationOverview().then((rows) {
+      if (!mounted) return;
+      final counts = {
+        for (final row in rows)
+          (row['code'] as String? ?? ''): (row['total'] as num?)?.toInt() ?? 0,
+      };
+      // An answer of all zeros while we already know real vehicles is a
+      // failed fetch, not an empty fleet — keep the last good numbers.
+      final known = _vehicleByCode;
+      final allZero = counts.values.every((v) => v == 0);
+      if (!(allZero && known != null && known.values.any((v) => v > 0))) {
+        _vehicleByCode = counts;
+        _reapplyExtras();
+      }
+      if (!_vehicleFollowUpDone) {
+        _vehicleFollowUpDone = true;
+        Future.delayed(const Duration(seconds: 3), () {
+          if (mounted) _loadVehicleCounts();
+        });
+      }
+    }).catchError((_) {});
   }
 
   void _goToTab(int index) => setState(() => _selectedIndex = index);

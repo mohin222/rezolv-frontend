@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../data/api_repository.dart';
 import '../models/peak_date.dart';
+import '../models/room_block.dart';
 import '../utils/error_messages.dart';
 import '../widgets/peak_date_sheet.dart';
+import 'station_peak_screen.dart';
 
-/// Every upcoming peak & block date (next 12 months), grouped by month,
-/// with station and type filters. Entered by hand in the backend admin.
+/// Every upcoming peak date and room block (next 12 months), grouped by
+/// month, with station and type filters. Entered in the backend admin.
 class PeakDatesScreen extends StatefulWidget {
   const PeakDatesScreen({super.key});
 
@@ -14,7 +16,7 @@ class PeakDatesScreen extends StatefulWidget {
   State<PeakDatesScreen> createState() => _PeakDatesScreenState();
 }
 
-enum _TypeFilter { all, peaks, blocks }
+enum _TypeFilter { all, peaks, rooms }
 
 class _PeakDatesScreenState extends State<PeakDatesScreen> {
   static const _navy = Color(0xFF0D2B4E);
@@ -24,6 +26,7 @@ class _PeakDatesScreenState extends State<PeakDatesScreen> {
   bool _loading = true;
   String? _error;
   List<PeakDate> _items = [];
+  List<RoomBlock> _blocks = [];
   String _station = 'ALL'; // 'ALL' = every station
   _TypeFilter _type = _TypeFilter.all;
 
@@ -34,11 +37,18 @@ class _PeakDatesScreenState extends State<PeakDatesScreen> {
   }
 
   Future<void> _load() async {
-    setState(() { _loading = _items.isEmpty; _error = null; });
+    setState(() { _loading = _items.isEmpty && _blocks.isEmpty; _error = null; });
     try {
-      final items = await ApiRepository().fetchPeakDates();
+      final results = await Future.wait([
+        ApiRepository().fetchPeakDates(),
+        ApiRepository().fetchRoomBlocks(),
+      ]);
       if (!mounted) return;
-      setState(() { _items = items; _loading = false; });
+      setState(() {
+        _items = results[0] as List<PeakDate>;
+        _blocks = results[1] as List<RoomBlock>;
+        _loading = false;
+      });
     } catch (e) {
       if (!mounted) return;
       setState(() { _error = friendlyError(e); _loading = false; });
@@ -47,17 +57,31 @@ class _PeakDatesScreenState extends State<PeakDatesScreen> {
 
   /// Stations that have at least one date, for the filter chips.
   List<String> get _stations {
-    final codes = _items.where((p) => !p.allStations).map((p) => p.station).toSet().toList()..sort();
-    return codes;
+    return {
+      ..._items.where((p) => !p.allStations).map((p) => p.station),
+      ..._blocks.map((b) => b.station),
+    }.toList()..sort();
   }
 
-  List<PeakDate> get _filtered => _items.where((p) {
-        if (_station != 'ALL' && !p.appliesTo(_station)) return false;
-        if (_type == _TypeFilter.peaks && p.isBlock) return false;
-        if (_type == _TypeFilter.blocks && !p.isBlock) return false;
-        return true;
-      }).toList()
-        ..sort((a, b) => a.start.compareTo(b.start));
+  /// Peaks and room blocks matching the filters, by start date — each item
+  /// is a PeakDate or a RoomBlock.
+  List<({DateTime start, bool ongoing, Object item})> get _filtered {
+    final out = <({DateTime start, bool ongoing, Object item})>[
+      if (_type != _TypeFilter.rooms)
+        for (final p in _items)
+          if (_station == 'ALL' || p.appliesTo(_station)) (start: p.start, ongoing: p.ongoing, item: p),
+      if (_type != _TypeFilter.peaks)
+        for (final b in sortedBlocks(_blocks))
+          if (_station == 'ALL' || b.station == _station) (start: b.start, ongoing: b.ongoing, item: b),
+    ];
+    // Stable by start date: within a day, peaks first, then hard → soft → arranged.
+    final indexed = out.asMap().entries.toList()
+      ..sort((a, b) {
+        final c = a.value.start.compareTo(b.value.start);
+        return c != 0 ? c : a.key.compareTo(b.key);
+      });
+    return indexed.map((e) => e.value).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -74,8 +98,8 @@ class _PeakDatesScreenState extends State<PeakDatesScreen> {
   }
 
   Widget _buildHero() {
-    final peaks = _items.where((p) => !p.isBlock).length;
-    final blocks = _items.where((p) => p.isBlock).length;
+    final peaks = _items.length;
+    final blocks = _blocks.length;
     return Container(
       color: _navy,
       padding: const EdgeInsets.fromLTRB(6, 4, 20, 16),
@@ -91,9 +115,9 @@ class _PeakDatesScreenState extends State<PeakDatesScreen> {
         Padding(
           padding: const EdgeInsets.only(left: 14),
           child: Row(children: [
-            _heroStat(Icons.local_fire_department_rounded, 'Peak events', _loading ? '—' : '$peaks', const Color(0xFFFF8A65)),
+            _heroStat(Icons.local_fire_department_rounded, 'Peak dates', _loading ? '—' : '$peaks', const Color(0xFFFF8A65)),
             const SizedBox(width: 10),
-            _heroStat(Icons.block_rounded, 'Block dates', _loading ? '—' : '$blocks', Colors.white70),
+            _heroStat(Icons.hotel_rounded, 'Room blocks', _loading ? '—' : '$blocks', const Color(0xFF90CAF9)),
           ]),
         ),
       ]),
@@ -151,16 +175,16 @@ class _PeakDatesScreenState extends State<PeakDatesScreen> {
         child: Column(children: [
           Icon(Icons.event_available_rounded, size: 40, color: textSecondary),
           const SizedBox(height: 10),
-          Text('No peak or block dates', style: TextStyle(fontWeight: FontWeight.w600, color: textPrimary)),
+          Text('Nothing here yet', style: TextStyle(fontWeight: FontWeight.w600, color: textPrimary)),
           const SizedBox(height: 4),
           Text('Nothing entered for this filter yet.', style: TextStyle(fontSize: 12, color: textSecondary)),
         ]),
       ));
     } else {
       String? lastMonth;
-      for (final p in items) {
-        // Ongoing events sit under the current month.
-        final month = _monthFmt.format(p.ongoing ? DateTime.now() : p.start);
+      for (final e in items) {
+        // Ongoing items sit under the current month.
+        final month = _monthFmt.format(e.ongoing ? DateTime.now() : e.start);
         if (month != lastMonth) {
           children.add(Padding(
             padding: const EdgeInsets.fromLTRB(4, 14, 4, 8),
@@ -168,7 +192,20 @@ class _PeakDatesScreenState extends State<PeakDatesScreen> {
           ));
           lastMonth = month;
         }
-        children.add(_PeakRow(peak: p, textPrimary: textPrimary, textSecondary: textSecondary));
+        final item = e.item;
+        children.add(item is PeakDate
+            ? _PeakRow(
+                peak: item,
+                onTap: () => item.allStations
+                    ? showPeakDatesSheet(context, [item])
+                    : _openStation(item.station, item.stationCity),
+                // Rooms held at that station during the peak.
+                blocks: item.allStations
+                    ? const []
+                    : _blocks.where((b) => b.station == item.station && !b.start.isAfter(item.end) && !b.end.isBefore(item.start)).toList(),
+                textPrimary: textPrimary,
+                textSecondary: textSecondary)
+            : _blockRow(item as RoomBlock, textPrimary, textSecondary));
       }
     }
 
@@ -180,6 +217,23 @@ class _PeakDatesScreenState extends State<PeakDatesScreen> {
         children: children,
       ),
     );
+  }
+
+  Widget _blockRow(RoomBlock b, Color textPrimary, Color textSecondary) => InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => _openStation(b.station, b.stationCity),
+        child: RoomBlockTile(block: b, showStation: true, textPrimary: textPrimary, textSecondary: textSecondary),
+      );
+
+  void _openStation(String code, String city) {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => StationPeakScreen(
+        stationCode: code,
+        stationCity: city,
+        peaks: _items.where((p) => p.appliesTo(code)).toList(),
+        blocks: _blocks.where((b) => b.station == code).toList(),
+      ),
+    ));
   }
 
   Widget _buildFilters(Color textSecondary) {
@@ -209,7 +263,7 @@ class _PeakDatesScreenState extends State<PeakDatesScreen> {
       Row(children: [
         chip('All', _type == _TypeFilter.all, () => setState(() => _type = _TypeFilter.all)),
         chip('Peaks', _type == _TypeFilter.peaks, () => setState(() => _type = _TypeFilter.peaks)),
-        chip('Blocks', _type == _TypeFilter.blocks, () => setState(() => _type = _TypeFilter.blocks)),
+        chip('Room blocks', _type == _TypeFilter.rooms, () => setState(() => _type = _TypeFilter.rooms)),
       ]),
     ]);
   }
@@ -217,8 +271,10 @@ class _PeakDatesScreenState extends State<PeakDatesScreen> {
 
 class _PeakRow extends StatelessWidget {
   final PeakDate peak;
+  final List<RoomBlock> blocks;
+  final VoidCallback onTap;
   final Color textPrimary, textSecondary;
-  const _PeakRow({required this.peak, required this.textPrimary, required this.textSecondary});
+  const _PeakRow({required this.peak, required this.blocks, required this.onTap, required this.textPrimary, required this.textSecondary});
 
   @override
   Widget build(BuildContext context) {
@@ -231,25 +287,24 @@ class _PeakRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          onTap: () => showPeakDatesSheet(context, [p]),
-          child: Container(
-            decoration: BoxDecoration(border: Border(left: BorderSide(color: p.color, width: 4))),
-            padding: const EdgeInsets.fromLTRB(12, 11, 10, 11),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 11, 10, 11),
             child: Row(children: [
-              Icon(p.isBlock ? Icons.block_rounded : Icons.local_fire_department_rounded, size: 20, color: p.color),
+              Container(width: 8, height: 8, decoration: BoxDecoration(color: p.color, shape: BoxShape.circle)),
               const SizedBox(width: 10),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(p.name, maxLines: 1, overflow: TextOverflow.ellipsis,
                     style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: textPrimary)),
                 const SizedBox(height: 2),
-                Text('$where · ${peakRange(p)} · ${p.kindLabel}',
+                Text('$where · ${peakRange(p)} · ${p.kindLabel}${blocks.isEmpty ? '' : ' · ${blocks.length} hotels'}',
                     maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11.5, color: textSecondary)),
               ])),
               const SizedBox(width: 8),
               Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                Text(peakWhen(p), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: p.ongoing ? p.color : textSecondary)),
+                Text(peakWhen(p), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: textPrimary)),
                 const SizedBox(height: 2),
-                Text(p.impactLabel, style: TextStyle(fontSize: 10, color: p.color, fontWeight: FontWeight.w600)),
+                Text(p.impactLabel, style: TextStyle(fontSize: 10, color: textSecondary)),
               ]),
               const SizedBox(width: 2),
               Icon(Icons.chevron_right, size: 16, color: textSecondary),

@@ -6,6 +6,7 @@ import '../models/real_station.dart';
 import '../models/real_hotel_days.dart';
 import '../models/leak_item.dart';
 import '../models/peak_date.dart';
+import '../models/room_block.dart';
 
 class UnauthorizedException implements Exception {}
 
@@ -454,6 +455,29 @@ class ApiRepository {
     }
     final data = jsonDecode(response.body) as Map<String, dynamic>;
     return (data['results'] as List).cast<Map<String, dynamic>>().map(PeakDate.fromJson).toList();
+  }
+
+  Future<List<Map<String, dynamic>>> _getResults(String path, Map<String, String> params, String what) async {
+    final response = await http.get(
+      Uri.parse('${ApiConfig.baseUrl}$path').replace(queryParameters: params.isEmpty ? null : params),
+      headers: await _headers(),
+    ).timeout(const Duration(seconds: 30));
+    _checkUnauthorized(response);
+    if (response.statusCode != 200) {
+      throw Exception('$what failed (HTTP ${response.statusCode})');
+    }
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    return (data['results'] as List).cast<Map<String, dynamic>>();
+  }
+
+  /// Rooms held at hotels (hard / soft blocks, peak arrangements).
+  Future<List<RoomBlock>> fetchRoomBlocks({String? from, String? to, String? station}) async {
+    final rows = await _getResults('/api/room-blocks/', {
+      if (from != null) 'from': from,
+      if (to != null) 'to': to,
+      if (station != null) 'station': station,
+    }, 'Room blocks');
+    return rows.map(RoomBlock.fromJson).toList();
   }
 
   /// Which Lumo features the app may show — set from the admin "Lumo
