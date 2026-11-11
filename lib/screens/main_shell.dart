@@ -44,15 +44,12 @@ class _MainShellState extends State<MainShell> {
   @override
   void initState() {
     super.initState();
-    // Load with default date range (today + tomorrow) immediately
-    final now = DateTime.now();
-    final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-    final tomorrow = now.add(const Duration(days: 1));
-    final toStr = '${tomorrow.year}-${tomorrow.month.toString().padLeft(2, '0')}-${tomorrow.day.toString().padLeft(2, '0')}';
-    _loadStations(fromDate: todayStr, toDate: toStr);
+    // Station cards show TODAY's rooms only — a today+tomorrow range added
+    // both days together and doubled every station's number.
+    _loadStations();
 
     _autoRefreshTimer = Timer.periodic(_autoRefreshInterval, (_) {
-      _loadStations(fromDate: todayStr, toDate: toStr, silent: true);
+      _loadStations(silent: true);
     });
   }
 

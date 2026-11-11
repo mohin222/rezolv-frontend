@@ -50,7 +50,7 @@ class _RealOverviewScreenState extends State<RealOverviewScreen> {
   bool _dropdownOpen = false;
 
   DateTime _fromDate = DateTime.now();
-  DateTime _toDate = DateTime.now().add(const Duration(days: 1));
+  DateTime _toDate = DateTime.now();
 
   static final DateFormat _apiDateFmt = DateFormat('yyyy-MM-dd');
   static final DateFormat _displayDateFmt = DateFormat('d MMM yyyy');
@@ -93,7 +93,7 @@ class _RealOverviewScreenState extends State<RealOverviewScreen> {
   void _resetDates() {
     setState(() {
       _fromDate = DateTime.now();
-      _toDate = DateTime.now().add(const Duration(days: 1));
+      _toDate = DateTime.now();
     });
   }
 
@@ -292,7 +292,7 @@ class _RealOverviewScreenState extends State<RealOverviewScreen> {
                       setState(() { _selectedCode = null; _selectedCity = null; });
                       widget.onReload(
                         fromDate: _apiDateFmt.format(DateTime.now()),
-                        toDate: _apiDateFmt.format(DateTime.now().add(const Duration(days: 1))),
+                        toDate: _apiDateFmt.format(DateTime.now()),
                       );
                     },
                     padding: const EdgeInsets.only(left: 6),
@@ -524,7 +524,7 @@ class _RealOverviewScreenState extends State<RealOverviewScreen> {
               _resetDates();
               widget.onReload(
                 fromDate: _apiDateFmt.format(DateTime.now()),
-                toDate: _apiDateFmt.format(DateTime.now().add(const Duration(days: 1))),
+                toDate: _apiDateFmt.format(DateTime.now()),
               );
             },
             child: const Text('Retry'),
@@ -558,7 +558,7 @@ class _RealOverviewScreenState extends State<RealOverviewScreen> {
         setState(() { _selectedCode = null; _selectedCity = null; });
         return widget.onReload(
           fromDate: _apiDateFmt.format(DateTime.now()),
-          toDate: _apiDateFmt.format(DateTime.now().add(const Duration(days: 1))),
+          toDate: _apiDateFmt.format(DateTime.now()),
         );
       },
       child: ListView.builder(

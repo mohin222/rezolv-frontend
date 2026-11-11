@@ -104,6 +104,14 @@ class _RealStationCardState extends State<RealStationCard> {
     );
   }
 
+  int get _hotelsWithRooms =>
+      (widget.station.hotelCount - widget.station.soldOutCount).clamp(0, widget.station.hotelCount);
+
+  Color get _withRoomsColor {
+    if (widget.station.hotelCount == 0 || _hotelsWithRooms == 0) return _darkRed;
+    return _hotelsWithRooms == widget.station.hotelCount ? Colors.green.shade700 : Colors.orange.shade800;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme       = Theme.of(context);
@@ -249,7 +257,10 @@ class _RealStationCardState extends State<RealStationCard> {
                 ),
               ),
             _statRow('Hotels',     '${widget.station.hotelCount}',                  textPrimary,  textSecondary),
-            _statRow('Fill',       '${widget.station.fillPct.toStringAsFixed(1)}%', _darkRed,     textSecondary),
+            // Hotels that still have free rooms out of all the station's
+            // hotels: green when all have rooms, orange when some are sold
+            // out, red when none have rooms.
+            _statRow('With rooms', '$_hotelsWithRooms of ${widget.station.hotelCount}', _withRoomsColor, textSecondary),
             _statRow('Gap',        '${widget.station.gapRooms}',                    _gapColor,    textSecondary),
             _statRow('Block util', widget.station.blockUtil ?? '0',                 _darkRed,     textSecondary),
           ])),

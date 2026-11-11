@@ -30,8 +30,12 @@ class _AirlineFlightRiskScreenState extends State<AirlineFlightRiskScreen> {
   String? _error;
   List<Map<String, dynamic>> _stations = [];
   Map<String, String> _stationCities = {};
-  int _networkStationCount = 0;
   DateTime? _computedAt;
+  // Which day's flights the list shows — toggled by the Today / Tomorrow
+  // buttons in the header.
+  bool _showToday = true;
+  // False for data saved before the backend sent today's flights.
+  bool _hasToday = false;
   bool _pending = false;
   Timer? _pendingPollTimer;
   static const _pendingPollInterval = Duration(seconds: 30);
@@ -64,17 +68,23 @@ class _AirlineFlightRiskScreenState extends State<AirlineFlightRiskScreen> {
       final computedAtRaw = data['computed_at'] as String?;
       final rawStations = (data['stations'] as List? ?? []).cast<Map<String, dynamic>>();
       final filteredStations = <Map<String, dynamic>>[];
+      // At-risk flights only, earliest departure first.
+      List<Map<String, dynamic>> risky(dynamic list) =>
+          ((list as List? ?? []).cast<Map<String, dynamic>>()).where(_meetsRiskThreshold).toList()
+            ..sort((a, b) => _departureKey(a).compareTo(_departureKey(b)));
       for (final st in rawStations) {
-        final week = ((st['week'] as List? ?? []).cast<Map<String, dynamic>>()).where(_meetsRiskThreshold).toList();
-        if (week.isEmpty) continue;
-        final tomorrow = ((st['tomorrow'] as List? ?? []).cast<Map<String, dynamic>>()).where(_meetsRiskThreshold).toList();
-        filteredStations.add({...st, 'week': week, 'tomorrow': tomorrow});
+        final today = risky(st['today']).where((f) => !_hasDeparted(f)).toList();
+        final tomorrow = risky(st['tomorrow'] ?? st['week']);
+        if (today.isEmpty && tomorrow.isEmpty) continue;
+        filteredStations.add({...st, 'today': today, 'tomorrow': tomorrow});
       }
+      final hasToday = data['today_date'] != null;
       final stillPending = data['pending'] == true;
       setState(() {
         _stationCities = cities;
         _stations = filteredStations;
-        _networkStationCount = (data['network_station_count'] as num?)?.toInt() ?? 0;
+        _hasToday = hasToday;
+        if (!hasToday) _showToday = false;
         _computedAt = computedAtRaw != null ? DateTime.tryParse(computedAtRaw)?.toLocal() : null;
         // Lumo couldn't be reached (or today's call budget is used up) —
         // say so instead of showing an empty 'nothing at risk' list.
@@ -95,7 +105,25 @@ class _AirlineFlightRiskScreenState extends State<AirlineFlightRiskScreen> {
     }
   }
 
-  int get _totalAtRisk => _stations.fold<int>(0, (s, st) => s + ((st['week'] as List?)?.length ?? 0));
+  // Sort key for a flight's departure: UTC when the backend sends it (right
+  // across time zones), else the local departure time.
+  static String _departureKey(Map<String, dynamic> flight) =>
+      (flight['departure_utc'] as String?) ?? (flight['departure_time'] as String?) ?? '';
+
+  // Today's flight already left? The backend hides these too; this keeps
+  // the list right while the screen stays open. departure_utc is Lumo's
+  // estimated (else scheduled) departure, in UTC.
+  static bool _hasDeparted(Map<String, dynamic> flight) {
+    final raw = flight['departure_utc'] as String?;
+    if (raw == null || raw.isEmpty) return false;
+    final departs = DateTime.tryParse(raw.endsWith('Z') ? raw : '${raw}Z');
+    return departs != null && !departs.isAfter(DateTime.now().toUtc());
+  }
+
+  String get _dayKey => _showToday ? 'today' : 'tomorrow';
+  int _countFor(String day) => _stations.fold<int>(0, (s, st) => s + ((st[day] as List?)?.length ?? 0));
+  List<Map<String, dynamic>> get _shownStations =>
+      _stations.where((st) => ((st[_dayKey] as List?) ?? []).isNotEmpty).toList();
 
   @override
   Widget build(BuildContext context) {
@@ -157,6 +185,13 @@ class _AirlineFlightRiskScreenState extends State<AirlineFlightRiskScreen> {
                   children: [
                     _header(textSecondary),
                     const SizedBox(height: 18),
+                    if (!_pending && _shownStations.isNotEmpty) ...[
+                      Text(
+                        "${_showToday ? "TODAY'S" : "TOMORROW'S"} AT-RISK FLIGHTS · ${_countFor(_dayKey)} across ${_shownStations.length} ${_shownStations.length == 1 ? 'station' : 'stations'}",
+                        style: TextStyle(fontSize: 10.5, color: textSecondary, letterSpacing: 0.8),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
                     if (_pending)
                       Container(
                         padding: const EdgeInsets.all(16),
@@ -164,15 +199,18 @@ class _AirlineFlightRiskScreenState extends State<AirlineFlightRiskScreen> {
                         child: Center(child: Text('Couldn\'t check ${widget.airlineName} right now — please try again in a little while.',
                             textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: textSecondary))),
                       )
-                    else if (_stations.isEmpty)
+                    else if (_shownStations.isEmpty)
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(color: cardBg, borderRadius: BorderRadius.circular(10), border: Border.all(color: borderColor)),
-                        child: Center(child: Text('No at-risk flights for ${widget.airlineName} across its network right now.',
+                        child: Center(child: Text(
+                            _showToday && !_hasToday
+                                ? "Today's flights will show after the next update."
+                                : 'No at-risk flights for ${widget.airlineName} ${_showToday ? 'today' : 'tomorrow'}.',
                             textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: textSecondary))),
                       )
                     else
-                      for (final st in _stations) ...[
+                      for (final st in _shownStations) ...[
                         _stationSection(st, cardBg, borderColor, textPrimary, textSecondary),
                         const SizedBox(height: 20),
                       ],
@@ -202,31 +240,58 @@ class _AirlineFlightRiskScreenState extends State<AirlineFlightRiskScreen> {
             Text(widget.airlineCode, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
             Text(widget.airlineName, style: const TextStyle(fontSize: 12.5, color: Colors.white70), overflow: TextOverflow.ellipsis),
           ])),
-          _headerStat(_pending ? '—' : '$_networkStationCount', 'Stations Flown'),
-          const SizedBox(width: 18),
-          _headerStat(_pending ? '—' : '${_stations.length}', 'At Risk Now'),
-          const SizedBox(width: 18),
-          _headerStat(_pending ? '—' : '$_totalAtRisk', 'Flights (Tmr)'),
+          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            const Text('AT RISK NOW', style: TextStyle(fontSize: 10, color: Colors.white70, letterSpacing: 0.6)),
+            const SizedBox(height: 2),
+            Text(_timeFmt.format(DateTime.now()), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white)),
+          ]),
+        ]),
+        const SizedBox(height: 14),
+        Row(children: [
+          Expanded(child: _dayButton('Today', true)),
+          const SizedBox(width: 10),
+          Expanded(child: _dayButton('Tomorrow', false)),
         ]),
         if (_computedAt != null) ...[
           const SizedBox(height: 10),
-          Text('Updated ${_timeFmt.format(_computedAt!)}', style: const TextStyle(fontSize: 10, color: Colors.white54)),
+          Text('Updated ${_dateFmt.format(_computedAt!)}, ${_timeFmt.format(_computedAt!)}',
+              style: const TextStyle(fontSize: 10, color: Colors.white54)),
         ],
       ]),
     );
   }
 
-  Widget _headerStat(String value, String label) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-      Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
-      Text(label, style: const TextStyle(fontSize: 10, color: Colors.white70)),
-    ]);
+  /// Today / Tomorrow switch: shows that day's at-risk flight count and,
+  /// when tapped, lists that day's flights below.
+  Widget _dayButton(String label, bool today) {
+    final selected = _showToday == today;
+    final available = !today || _hasToday;
+    final count = _pending || !available ? '—' : '${_countFor(today ? 'today' : 'tomorrow')}';
+    return GestureDetector(
+      onTap: available ? () => setState(() => _showToday = today) : null,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        decoration: BoxDecoration(
+          color: selected ? Colors.white : Colors.white.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.white.withOpacity(selected ? 1 : 0.18)),
+        ),
+        child: Row(children: [
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: selected ? _navy : Colors.white)),
+            Text('at-risk flights', style: TextStyle(fontSize: 9.5, color: selected ? _navy.withOpacity(0.6) : Colors.white54)),
+          ])),
+          Text(count, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: selected ? _navy : Colors.white)),
+        ]),
+      ),
+    );
   }
 
   Widget _stationSection(Map<String, dynamic> station, Color cardBg, Color borderColor, Color textPrimary, Color textSecondary) {
     final code = (station['station'] as String?) ?? '';
     final city = _stationCities[code] ?? '';
-    final flights = (station['week'] as List? ?? []).cast<Map<String, dynamic>>();
+    final flights = (station[_dayKey] as List? ?? []).cast<Map<String, dynamic>>();
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
         Text(code, style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: textPrimary)),
